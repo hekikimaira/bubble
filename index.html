@@ -2,660 +2,620 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>吹き出しツール</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  :root {
-    --bg: #0f0f1a;
-    --panel: #1a1a2e;
-    --border: #2a2a4a;
-    --accent: #38bdf8;
-    --text: #e2e8f0;
-    --dim: #94a3b8;
-    --purple: #6366f1;
-    --amber: #f59e0b;
-    --green: #10b981;
-    --red: #ef4444;
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0f0f1a;--panel:#1a1a2e;--border:#2a2a4a;
+    --accent:#38bdf8;--text:#e2e8f0;--dim:#94a3b8;
+    --purple:#6366f1;--amber:#f59e0b;--green:#10b981;--red:#ef4444;
   }
-  body {
-    font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-    display: flex;
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+    background:var(--bg);color:var(--text);
+    height:100vh;height:100dvh;width:100vw;overflow:hidden;
+    display:flex;flex-direction:column;
   }
-  button {
-    font-family: inherit;
-    cursor: pointer;
-    border: none;
-    font-weight: 600;
-  }
-  button:disabled { opacity: 0.4; cursor: default; }
-  .toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
-  }
-  .toolbar .sep { width: 1px; height: 24px; background: var(--border); }
-  .btn {
-    padding: 6px 14px;
-    color: #fff;
-    border-radius: 6px;
-    font-size: 13px;
-    white-space: nowrap;
-    transition: filter 0.15s;
-  }
-  .btn:hover:not(:disabled) { filter: brightness(1.2); }
-  .btn-accent { background: var(--accent); }
-  .btn-purple { background: var(--purple); }
-  .btn-amber { background: var(--amber); color: #000; }
-  .btn-green { background: var(--green); }
-  .btn-red { background: var(--red); }
-  .btn-small {
-    padding: 3px 8px;
-    font-size: 11px;
-    border-radius: 4px;
-    color: #fff;
-  }
-  .mode-toggle {
-    display: flex;
-    border-radius: 6px;
-    overflow: hidden;
-    border: 2px solid var(--border);
-  }
-  .mode-btn {
-    padding: 5px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    background: transparent;
-    color: var(--dim);
-    border: none;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .mode-btn.active { background: var(--accent); color: #000; }
-  .mode-btn:not(.active):hover { background: var(--border); }
+  button{font-family:inherit;cursor:pointer;border:none;font-weight:600;-webkit-appearance:none}
+  button:disabled{opacity:.4;cursor:default}
 
-  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  #canvas-area {
-    flex: 1; overflow: auto;
-    display: flex; align-items: center; justify-content: center;
-    padding: 16px;
+  /* Top bar */
+  #topbar{
+    display:flex;align-items:center;gap:6px;
+    padding:6px 8px;background:var(--panel);
+    border-bottom:1px solid var(--border);
+    min-height:44px;flex-shrink:0;
   }
-  #drop-zone {
-    width: 400px; height: 300px;
-    border: 2px dashed var(--border);
-    border-radius: 16px;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    cursor: pointer; gap: 12px;
-    transition: border-color 0.2s;
+  .btn{
+    padding:7px 12px;color:#fff;border-radius:8px;font-size:13px;
+    white-space:nowrap;touch-action:manipulation;
   }
-  #drop-zone:hover { border-color: var(--accent); }
-  #canvas-wrapper {
-    position: relative; display: none;
-    flex-shrink: 0; transform-origin: center center;
-  }
-  #canvas-wrapper img { display: block; pointer-events: none; }
-  .bubble {
-    position: absolute;
-    writing-mode: vertical-rl;
-    display: inline-flex;
-    flex-direction: row-reverse;
-    user-select: none;
-    transition: outline 0.15s;
-    outline: 2px solid transparent;
-    outline-offset: 2px;
-  }
-  .bubble.selected { outline: 2px solid var(--accent); z-index: 10; }
-  .bubble.move-mode { cursor: grab; }
-  .bubble.move-mode:active { cursor: grabbing; }
-  .bubble.edit-mode { cursor: pointer; }
-  .bubble.move-mode:hover { outline: 2px solid rgba(56,189,248,0.5); }
-  .bubble-col { white-space: nowrap; line-height: 1.4; }
+  .btn-accent{background:var(--accent);color:#000}
+  .btn-purple{background:var(--purple)}
+  .btn-amber{background:var(--amber);color:#000}
+  .btn-green{background:var(--green)}
+  .btn-sm{padding:5px 10px;font-size:12px;border-radius:6px}
 
-  #mode-indicator {
-    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-    padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: 600;
-    pointer-events: none; z-index: 100; transition: all 0.3s; opacity: 0;
+  /* Mode toggle */
+  .mode-toggle{
+    display:flex;border-radius:8px;overflow:hidden;
+    border:2px solid var(--border);flex-shrink:0;
   }
-  #mode-indicator.show { opacity: 1; }
-  #mode-indicator.move { background: rgba(56,189,248,0.9); color: #000; }
-  #mode-indicator.edit { background: rgba(99,102,241,0.9); color: #fff; }
+  .mode-btn{
+    padding:6px 14px;font-size:13px;font-weight:600;
+    background:transparent;color:var(--dim);border:none;
+    transition:all .2s;
+  }
+  .mode-btn.active{background:var(--accent);color:#000}
 
-  #panel {
-    width: 280px; background: var(--panel);
-    border-left: 1px solid var(--border);
-    display: flex; flex-direction: column; overflow: hidden;
-    transition: width 0.25s, opacity 0.25s;
+  /* Canvas area (move mode) */
+  #canvas-area{
+    flex:1;overflow:auto;display:flex;
+    align-items:center;justify-content:center;
+    padding:8px;position:relative;
+    -webkit-overflow-scrolling:touch;
   }
-  #panel.collapsed { width: 0; opacity: 0; overflow: hidden; border-left: none; }
-  #editor { flex: 1; overflow: auto; padding: 12px; }
-  #placeholder-msg {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 24px; color: var(--dim); text-align: center; gap: 8px;
+  #drop-zone{
+    width:280px;height:200px;
+    border:2px dashed var(--border);border-radius:16px;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    cursor:pointer;gap:8px;
   }
-  .lbl {
-    font-size: 11px; font-weight: 600; color: var(--dim);
-    text-transform: uppercase; letter-spacing: 1px;
-    margin-bottom: 4px; display: block;
+  #canvas-wrapper{
+    position:relative;display:none;
+    flex-shrink:0;transform-origin:center center;
   }
-  textarea, input[type="number"] {
-    width: 100%; padding: 8px 10px;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 6px; color: var(--text);
-    font-size: 14px; outline: none;
-    font-family: "Hiragino Kaku Gothic ProN", sans-serif;
+  #canvas-wrapper img{display:block;pointer-events:none}
+
+  .bubble{
+    position:absolute;writing-mode:vertical-rl;
+    display:inline-flex;flex-direction:row-reverse;
+    user-select:none;outline:2px solid transparent;outline-offset:2px;
+    touch-action:none;
   }
-  textarea { resize: vertical; }
-  input[type="range"] { accent-color: var(--accent); width: 100%; }
-  .color-swatch {
-    width: 28px; height: 28px; border-radius: 4px;
-    cursor: pointer; border: 2px solid transparent;
-    position: relative; overflow: hidden;
+  .bubble.move-mode{cursor:grab}
+  .bubble.move-mode:active{cursor:grabbing}
+  .bubble.move-mode.dragging{outline:2px solid var(--accent)}
+
+  .bubble-col{
+    display:flex;flex-direction:column;align-items:center;
   }
-  .color-swatch.active { border-color: var(--accent); }
-  .color-swatch-inner { position: absolute; inset: 0; border-radius: 3px; }
-  .color-swatch-checker {
-    position: absolute; inset: 0;
+  .bubble-char{
+    display:inline-block;
+    transition:none;
+  }
+
+  /* Editor area (edit mode) */
+  #editor-area{
+    flex:1;overflow-y:auto;padding:12px;
+    display:none;flex-direction:column;gap:12px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .card{
+    background:var(--panel);border-radius:12px;
+    padding:12px;border:1px solid var(--border);
+  }
+  .card-header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .card-title{
+    font-size:13px;font-weight:700;
+    display:flex;align-items:center;gap:6px;
+  }
+  .card-actions{display:flex;gap:4px}
+  .tag{
+    display:inline-block;padding:2px 8px;border-radius:4px;
+    font-size:10px;font-weight:700;text-transform:uppercase;
+  }
+  .tag-purple{background:var(--purple);color:#fff}
+  .tag-amber{background:var(--amber);color:#000}
+
+  .lbl{
+    font-size:11px;font-weight:600;color:var(--dim);
+    text-transform:uppercase;letter-spacing:.5px;
+    margin-bottom:4px;display:block;
+  }
+  textarea,input[type="number"]{
+    width:100%;padding:10px;
+    background:var(--bg);border:1px solid var(--border);
+    border-radius:8px;color:var(--text);
+    font-size:16px;outline:none;
+    font-family:inherit;
+  }
+  textarea{resize:none;min-height:70px}
+  input[type="range"]{
+    -webkit-appearance:none;appearance:none;
+    width:100%;height:6px;border-radius:3px;
+    background:var(--border);outline:none;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:22px;height:22px;
+    border-radius:50%;background:var(--accent);cursor:pointer;
+  }
+
+  .swatch-row{display:flex;gap:6px;flex-wrap:wrap}
+  .swatch{
+    width:32px;height:32px;border-radius:6px;
+    cursor:pointer;border:2px solid transparent;
+    position:relative;overflow:hidden;
+  }
+  .swatch.active{border-color:var(--accent)}
+  .swatch-checker{
+    position:absolute;inset:0;
     background-image:
       linear-gradient(45deg,#333 25%,transparent 25%,transparent 75%,#333 75%),
       linear-gradient(45deg,#333 25%,transparent 25%,transparent 75%,#333 75%);
-    background-size: 8px 8px; background-position: 0 0, 4px 4px;
+    background-size:8px 8px;background-position:0 0,4px 4px;
   }
-  .preset-btn {
-    padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;
-    background: var(--border); color: var(--dim); border: none;
+  .swatch-fill{position:absolute;inset:0;border-radius:5px}
+
+  .preset-grid{display:flex;flex-wrap:wrap;gap:4px}
+  .preset{
+    padding:4px 10px;border-radius:6px;font-size:13px;
+    background:var(--border);color:var(--dim);border:none;
+    cursor:pointer;
   }
-  .preset-btn.active { background: var(--amber); color: #000; }
-  .type-btn {
-    flex: 1; padding: 6px 0; border-radius: 6px;
-    font-size: 13px; font-weight: 600;
-    background: var(--border); color: var(--dim);
+  .preset.active{background:var(--amber);color:#000}
+
+  .type-row{display:flex;gap:6px}
+  .type-btn{
+    flex:1;padding:8px 0;border-radius:8px;
+    font-size:13px;font-weight:600;text-align:center;
+    background:var(--border);color:var(--dim);
   }
-  .type-btn.active { background: var(--accent); color: #000; }
-  #bubble-list { border-top: 1px solid var(--border); max-height: 200px; overflow: auto; }
-  .list-header {
-    font-size: 11px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 1.5px; color: var(--dim); padding: 8px 12px 4px;
+  .type-btn.active{background:var(--accent);color:#000}
+
+  .empty-state{
+    flex:1;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    color:var(--dim);gap:8px;text-align:center;padding:40px;
   }
-  .list-item {
-    padding: 6px 12px; font-size: 12px; cursor: pointer;
-    display: flex; align-items: center; gap: 6px;
-    border-left: 3px solid transparent;
+
+  /* Bottom bar */
+  #bottombar{
+    display:flex;align-items:center;gap:6px;
+    padding:6px 8px;background:var(--panel);
+    border-top:1px solid var(--border);
+    min-height:44px;flex-shrink:0;
+    padding-bottom:max(6px,env(safe-area-inset-bottom));
   }
-  .list-item.active { background: var(--border); border-left-color: var(--accent); }
-  .list-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .list-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .zoom-group { display: flex; align-items: center; gap: 4px; font-size: 13px; }
-  .zoom-group span { color: var(--dim); }
+  .zoom-group{display:flex;align-items:center;gap:4px;font-size:12px;flex:1}
+  .zoom-group span{color:var(--dim)}
+
+  /* Toast */
+  #toast{
+    position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+    padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;
+    pointer-events:none;z-index:100;opacity:0;transition:opacity .3s;
+    background:rgba(56,189,248,.9);color:#000;white-space:nowrap;
+  }
+  #toast.show{opacity:1}
 </style>
 </head>
 <body>
 
-<div id="main">
-  <div class="toolbar">
-    <input type="file" id="file-input" accept="image/*" style="display:none">
-    <button class="btn btn-accent" onclick="document.getElementById('file-input').click()">画像読込</button>
-    <div class="sep"></div>
-    <button class="btn btn-purple" id="btn-add-dialogue" disabled onclick="addBubble('dialogue')">+ セリフ</button>
-    <button class="btn btn-amber" id="btn-add-onom" disabled onclick="addBubble('onomatopoeia')">+ オノマトペ</button>
-    <div class="sep"></div>
-    <div class="mode-toggle">
-      <button class="mode-btn active" id="mode-move" onclick="setMode('move')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
-        移動
-      </button>
-      <button class="mode-btn" id="mode-edit" onclick="setMode('edit')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        編集
-      </button>
-    </div>
-    <div style="flex:1"></div>
-    <div class="zoom-group">
-      <span>Zoom</span>
-      <input type="range" id="zoom-slider" min="0.1" max="2" step="0.05" value="1" style="width:80px" oninput="setZoom(this.value)">
-      <span id="zoom-label" style="width:40px;text-align:right">100%</span>
-    </div>
-    <div class="sep"></div>
-    <button class="btn btn-green" id="btn-png" disabled onclick="exportImage('png')">PNG出力</button>
-    <button class="btn btn-green" id="btn-jpeg" disabled onclick="exportImage('jpeg')">JPEG出力</button>
-  </div>
-  <div id="canvas-area">
-    <div id="drop-zone" onclick="document.getElementById('file-input').click()">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
-        <rect x="3" y="3" width="18" height="18" rx="2"/>
-        <circle cx="8.5" cy="8.5" r="1.5"/>
-        <path d="M21 15l-5-5L5 21"/>
-      </svg>
-      <span style="color:var(--dim);font-size:14px">画像をドロップまたはクリック</span>
-    </div>
-    <div id="canvas-wrapper">
-      <img id="canvas-img" src="" alt="">
-    </div>
+<div id="topbar">
+  <input type="file" id="file-input" accept="image/*" style="display:none">
+  <button class="btn btn-sm btn-accent" onclick="document.getElementById('file-input').click()">画像</button>
+  <button class="btn btn-sm btn-purple" id="btn-add-d" disabled onclick="addBubble('dialogue')">+セリフ</button>
+  <button class="btn btn-sm btn-amber" id="btn-add-o" disabled onclick="addBubble('onomatopoeia')">+オノマトペ</button>
+  <div style="flex:1"></div>
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="m-move" onclick="setMode('move')">移動</button>
+    <button class="mode-btn" id="m-edit" onclick="setMode('edit')">編集</button>
   </div>
 </div>
 
-<div id="panel" class="collapsed">
-  <div id="editor" style="display:none"></div>
-  <div id="placeholder-msg">
+<!-- Move mode: canvas -->
+<div id="canvas-area">
+  <div id="drop-zone" onclick="document.getElementById('file-input').click()">
     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
     </svg>
-    <span style="font-size:13px">吹き出しを選択して編集</span>
-    <span style="font-size:11px">編集モードに切り替えてください</span>
+    <span style="color:var(--dim);font-size:13px">タップして画像を選択</span>
   </div>
-  <div id="bubble-list">
-    <div class="list-header">吹き出し一覧 (<span id="bubble-count">0</span>)</div>
-    <div id="list-items"></div>
+  <div id="canvas-wrapper">
+    <img id="canvas-img" src="" alt="">
   </div>
 </div>
 
-<div id="mode-indicator"></div>
+<!-- Edit mode: editor -->
+<div id="editor-area"></div>
+
+<div id="bottombar">
+  <div class="zoom-group" id="zoom-row">
+    <span>Zoom</span>
+    <input type="range" id="zoom-slider" min="0.1" max="3" step="0.05" value="1" style="flex:1" oninput="setZoom(this.value)">
+    <span id="zoom-label" style="width:36px;text-align:right">100%</span>
+  </div>
+  <button class="btn btn-sm btn-green" id="btn-exp" disabled onclick="exportImage('png')">PNG</button>
+  <button class="btn btn-sm btn-green" id="btn-expj" disabled onclick="exportImage('jpeg')">JPEG</button>
+</div>
+
+<div id="toast"></div>
 
 <script>
-const TYPES = {
-  dialogue: {
-    label: "セリフ", bg: "rgba(0,0,0,0.65)", color: "#ffffff",
-    fontSize: 28, radius: 12, padding: 16, weight: "normal", spacing: 4, stroke: false
-  },
-  onomatopoeia: {
-    label: "オノマトペ", bg: "rgba(0,0,0,0.45)", color: "#ffffff",
-    fontSize: 42, radius: 8, padding: 12, weight: "bold", spacing: 8, stroke: true
-  }
+const TYPES={
+  dialogue:{label:"セリフ",bg:"rgba(0,0,0,0.65)",color:"#ffffff",fontSize:28,radius:12,padding:16,weight:"normal",spacing:4,distort:false},
+  onomatopoeia:{label:"オノマトペ",bg:"rgba(0,0,0,0.45)",color:"#ffffff",fontSize:42,radius:8,padding:12,weight:"bold",spacing:8,distort:true}
 };
-const BG_COLORS = [
-  "rgba(0,0,0,0.65)","rgba(0,0,0,0.45)","rgba(0,0,0,0.8)",
-  "rgba(30,30,60,0.7)","rgba(60,20,20,0.65)","rgba(20,40,60,0.7)","rgba(255,255,255,0.6)"
-];
-const TEXT_COLORS = ["#ffffff","#f0e68c","#fca5a5","#93c5fd","#86efac","#c4b5fd"];
-const ONOM_PRESETS = [
-  "ドキッ","ゾクッ","ビクッ","じーっ","ぎゅっ",
-  "はぁ…","カァァ","ゴクリ","トクン","ぞわっ",
-  "きゅん","ドキドキ","ぐっ…","チラッ","ふるっ"
-];
+const BG_COLORS=["rgba(0,0,0,0.65)","rgba(0,0,0,0.45)","rgba(0,0,0,0.8)","rgba(30,30,60,0.7)","rgba(60,20,20,0.65)","rgba(20,40,60,0.7)","rgba(255,255,255,0.6)"];
+const TXT_COLORS=["#ffffff","#f0e68c","#fca5a5","#93c5fd","#86efac","#c4b5fd"];
+const ONOM=["ドキッ","ゾクッ","ビクッ","じーっ","ぎゅっ","はぁ…","カァァ","ゴクリ","トクン","ぞわっ","きゅん","ドキドキ","ぐっ…","チラッ","ふるっ"];
 
-let imageData = null, imageW = 0, imageH = 0;
-let bubbles = [], selectedId = null, currentZoom = 1;
-let currentMode = 'move';
-let idCounter = 0, indicatorTimer = null;
+let imageData=null,imageW=0,imageH=0;
+let bubbles=[],selectedId=null,currentZoom=1,currentMode='move',idC=0;
 
-const $ = s => document.querySelector(s);
-const fileInput = $('#file-input');
-const wrapper = $('#canvas-wrapper');
-const canvasImg = $('#canvas-img');
+const $=s=>document.querySelector(s);
+const wrapper=$('#canvas-wrapper'),canvasImg=$('#canvas-img'),fileInput=$('#file-input');
 
-function setMode(mode) {
-  currentMode = mode;
-  $('#mode-move').classList.toggle('active', mode === 'move');
-  $('#mode-edit').classList.toggle('active', mode === 'edit');
-  const panel = $('#panel');
-  if (mode === 'move') {
-    panel.classList.add('collapsed');
-    selectedId = null;
-    document.querySelectorAll('.bubble').forEach(b => b.classList.remove('selected'));
-  } else {
-    panel.classList.remove('collapsed');
-    renderEditor();
+// Seeded random for distortion
+function seededRand(seed){let s=seed;return()=>{s=(s*16807+0)%2147483647;return(s-1)/2147483646}}
+
+function genDistortion(text,seed){
+  const rng=seededRand(seed);
+  const chars=[];
+  for(const ch of text){
+    if(ch==='\n'){chars.push({ch:'\n',rot:0,scale:1,dx:0,dy:0});continue}
+    chars.push({
+      ch,
+      rot:(rng()-.5)*24,       // -12 to 12 degrees
+      scale:.88+rng()*.24,     // 0.88-1.12
+      dx:(rng()-.5)*4,         // -2 to 2 px offset
+      dy:(rng()-.5)*4,
+    });
   }
-  document.querySelectorAll('.bubble').forEach(b => {
-    b.classList.toggle('move-mode', mode === 'move');
-    b.classList.toggle('edit-mode', mode === 'edit');
-  });
-  showIndicator(mode === 'move' ? '移動モード — ドラッグで配置' : '編集モード — クリックで編集', mode);
-  renderList();
+  return chars;
 }
 
-function showIndicator(text, type) {
-  const el = $('#mode-indicator');
-  el.textContent = text;
-  el.className = 'show ' + type;
-  clearTimeout(indicatorTimer);
-  indicatorTimer = setTimeout(() => { el.className = ''; }, 1500);
+// --- Mode ---
+function setMode(mode){
+  currentMode=mode;
+  $('#m-move').classList.toggle('active',mode==='move');
+  $('#m-edit').classList.toggle('active',mode==='edit');
+  $('#canvas-area').style.display=mode==='move'?'flex':'none';
+  $('#editor-area').style.display=mode==='edit'?'flex':'none';
+  $('#zoom-row').style.display=mode==='move'?'flex':'none';
+  if(mode==='edit'){
+    selectedId=null;
+    document.querySelectorAll('.bubble').forEach(b=>b.classList.remove('dragging'));
+    renderEditorList();
+  }
+  toast(mode==='move'?'移動モード':'編集モード');
 }
 
-fileInput.addEventListener('change', e => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const img = new Image();
-    img.onload = () => {
-      imageW = img.width; imageH = img.height;
-      imageData = ev.target.result;
-      canvasImg.src = imageData;
-      canvasImg.style.width = imageW + 'px';
-      canvasImg.style.height = imageH + 'px';
-      wrapper.style.width = imageW + 'px';
-      wrapper.style.height = imageH + 'px';
-      wrapper.style.display = 'block';
-      $('#drop-zone').style.display = 'none';
-      bubbles = []; selectedId = null;
-      clearBubbleDom(); fitZoom(); enableButtons(true);
-      renderList(); renderEditor();
+function toast(t){
+  const el=$('#toast');el.textContent=t;el.className='show';
+  clearTimeout(toast._t);toast._t=setTimeout(()=>el.className='',1200);
+}
+
+// --- Image ---
+fileInput.addEventListener('change',e=>{
+  const f=e.target.files?.[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      imageW=img.width;imageH=img.height;imageData=ev.target.result;
+      canvasImg.src=imageData;
+      canvasImg.style.width=imageW+'px';canvasImg.style.height=imageH+'px';
+      wrapper.style.width=imageW+'px';wrapper.style.height=imageH+'px';
+      wrapper.style.display='block';$('#drop-zone').style.display='none';
+      bubbles=[];selectedId=null;
+      document.querySelectorAll('.bubble').forEach(e=>e.remove());
+      fitZoom();enableBtns(true);renderEditorList();
     };
-    img.src = ev.target.result;
+    img.src=ev.target.result;
   };
-  reader.readAsDataURL(file);
+  r.readAsDataURL(f);
 });
 
-wrapper.addEventListener('click', e => {
-  if (e.target === wrapper || e.target === canvasImg) {
-    selectedId = null;
-    document.querySelectorAll('.bubble').forEach(b => b.classList.remove('selected'));
-    renderEditor(); renderList();
-  }
-});
-
-document.body.addEventListener('dragover', e => e.preventDefault());
-document.body.addEventListener('drop', e => {
+document.body.addEventListener('dragover',e=>e.preventDefault());
+document.body.addEventListener('drop',e=>{
   e.preventDefault();
-  const file = e.dataTransfer?.files?.[0];
-  if (file && file.type.startsWith('image/')) {
-    const dt = new DataTransfer(); dt.items.add(file);
-    fileInput.files = dt.files;
-    fileInput.dispatchEvent(new Event('change'));
+  const f=e.dataTransfer?.files?.[0];
+  if(f&&f.type.startsWith('image/')){
+    const dt=new DataTransfer();dt.items.add(f);
+    fileInput.files=dt.files;fileInput.dispatchEvent(new Event('change'));
   }
 });
 
-function enableButtons(v) {
-  $('#btn-add-dialogue').disabled = !v;
-  $('#btn-add-onom').disabled = !v;
-  $('#btn-png').disabled = !v;
-  $('#btn-jpeg').disabled = !v;
+function enableBtns(v){$('#btn-add-d').disabled=!v;$('#btn-add-o').disabled=!v;$('#btn-exp').disabled=!v;$('#btn-expj').disabled=!v}
+
+function fitZoom(){
+  const a=$('#canvas-area');
+  const z=Math.min((a.clientWidth-16)/imageW,(a.clientHeight-16)/imageH,1);
+  setZoom(z);$('#zoom-slider').value=z;
 }
+function setZoom(v){currentZoom=parseFloat(v);wrapper.style.transform=`scale(${currentZoom})`;$('#zoom-label').textContent=Math.round(currentZoom*100)+'%'}
 
-function fitZoom() {
-  const area = $('#canvas-area');
-  const z = Math.min((area.clientWidth-32)/imageW, (area.clientHeight-32)/imageH, 1);
-  setZoom(z); $('#zoom-slider').value = z;
-}
+function genId(){return'b'+(++idC)}
 
-function setZoom(v) {
-  currentZoom = parseFloat(v);
-  wrapper.style.transform = `scale(${currentZoom})`;
-  $('#zoom-label').textContent = Math.round(currentZoom*100)+'%';
-}
-
-function genId() { return 'b'+(++idCounter); }
-
-function addBubble(type) {
-  const s = TYPES[type];
-  const b = {
-    id: genId(), type,
-    text: type==='onomatopoeia' ? 'ドキッ' : 'セリフを入力',
-    x: 50+Math.random()*100, y: 50+Math.random()*100,
-    fontSize: s.fontSize, bg: s.bg, color: s.color
+// --- Bubbles ---
+function addBubble(type){
+  const s=TYPES[type];
+  const seed=Math.floor(Math.random()*2147483647);
+  const b={
+    id:genId(),type,
+    text:type==='onomatopoeia'?'ドキッ':'セリフを入力',
+    x:30+Math.random()*80,y:30+Math.random()*80,
+    fontSize:s.fontSize,bg:s.bg,color:s.color,
+    opacity:1.0,
+    distortSeed:seed,
+    distortAmount:type==='onomatopoeia'?1.0:0,
   };
   bubbles.push(b);
   createBubbleDom(b);
-  if (currentMode === 'edit') selectBubble(b.id);
-  else renderList();
+  if(currentMode==='edit')renderEditorList();
 }
 
-function createBubbleDom(b) {
-  const el = document.createElement('div');
-  el.className = 'bubble '+currentMode+'-mode';
-  el.id = 'bub-'+b.id;
-  el.dataset.bid = b.id;
-  updateBubbleDom(b, el);
-  setupInteraction(el, b);
-  wrapper.appendChild(el);
+function createBubbleDom(b){
+  const el=document.createElement('div');
+  el.className='bubble move-mode';el.id='bub-'+b.id;el.dataset.bid=b.id;
+  updateBubbleDom(b,el);setupDrag(el,b);wrapper.appendChild(el);
 }
 
-function setupInteraction(el, b) {
-  el.addEventListener('mousedown', e => {
-    e.stopPropagation();
-    if (currentMode === 'move') {
-      const sx = e.clientX, sy = e.clientY, ox = b.x, oy = b.y;
-      const onMove = ev => {
-        b.x = ox + (ev.clientX - sx) / currentZoom;
-        b.y = oy + (ev.clientY - sy) / currentZoom;
-        el.style.left = b.x+'px'; el.style.top = b.y+'px';
-      };
-      const onUp = () => {
-        window.removeEventListener('mousemove', onMove);
-        window.removeEventListener('mouseup', onUp);
-      };
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
-    } else {
-      selectBubble(b.id);
+function updateBubbleDom(b,el){
+  if(!el)el=document.getElementById('bub-'+b.id);if(!el)return;
+  const s=TYPES[b.type],isO=b.type==='onomatopoeia';
+  el.style.left=b.x+'px';el.style.top=b.y+'px';
+  el.style.backgroundColor=b.bg;
+  el.style.borderRadius=s.radius+'px';el.style.padding=s.padding+'px';
+  el.style.gap=isO?'2px':'6px';
+  el.style.opacity=b.opacity;
+
+  const lines=b.text.split('\n');
+  const distChars=genDistortion(b.text,b.distortSeed);
+  el.innerHTML='';
+  let ci=0;
+  lines.forEach(line=>{
+    const col=document.createElement('div');
+    col.className='bubble-col';
+    for(const ch of line){
+      const d=distChars[ci++]||{rot:0,scale:1,dx:0,dy:0};
+      const sp=document.createElement('span');
+      sp.className='bubble-char';
+      sp.textContent=ch;
+      sp.style.color=b.color;
+      sp.style.fontSize=b.fontSize+'px';
+      sp.style.fontWeight=s.weight;
+      sp.style.letterSpacing=s.spacing+'px';
+      sp.style.textShadow=isO?'0 0 8px rgba(0,0,0,0.8),2px 2px 0 rgba(0,0,0,0.6)':'0 1px 3px rgba(0,0,0,0.5)';
+      if(isO)sp.style.webkitTextStroke='1px rgba(0,0,0,0.3)';
+      const amt=b.distortAmount||0;
+      if(amt>0){
+        sp.style.transform=`rotate(${d.rot*amt}deg) scale(${1+(d.scale-1)*amt}) translate(${d.dx*amt}px,${d.dy*amt}px)`;
+      }
+      col.appendChild(sp);
     }
-  });
-
-  el.addEventListener('touchstart', e => {
-    e.stopPropagation();
-    if (currentMode === 'move') {
-      const t = e.touches[0];
-      const sx = t.clientX, sy = t.clientY, ox = b.x, oy = b.y;
-      const onMove = ev => {
-        ev.preventDefault();
-        const tc = ev.touches[0];
-        b.x = ox + (tc.clientX - sx) / currentZoom;
-        b.y = oy + (tc.clientY - sy) / currentZoom;
-        el.style.left = b.x+'px'; el.style.top = b.y+'px';
-      };
-      const onEnd = () => {
-        window.removeEventListener('touchmove', onMove);
-        window.removeEventListener('touchend', onEnd);
-      };
-      window.addEventListener('touchmove', onMove, {passive:false});
-      window.addEventListener('touchend', onEnd);
-    } else {
-      selectBubble(b.id);
-    }
-  }, {passive:true});
-}
-
-function updateBubbleDom(b, el) {
-  if (!el) el = document.getElementById('bub-'+b.id);
-  if (!el) return;
-  const s = TYPES[b.type], isO = b.type==='onomatopoeia';
-  el.style.left = b.x+'px'; el.style.top = b.y+'px';
-  el.style.backgroundColor = b.bg;
-  el.style.borderRadius = s.radius+'px';
-  el.style.padding = s.padding+'px';
-  el.style.gap = isO ? '2px' : '6px';
-  const lines = b.text.split('\n');
-  el.innerHTML = '';
-  lines.forEach(line => {
-    const span = document.createElement('span');
-    span.className = 'bubble-col';
-    span.textContent = line;
-    span.style.color = b.color;
-    span.style.fontSize = b.fontSize+'px';
-    span.style.fontWeight = s.weight;
-    span.style.letterSpacing = s.spacing+'px';
-    span.style.textShadow = isO
-      ? '0 0 8px rgba(0,0,0,0.8), 2px 2px 0 rgba(0,0,0,0.6)'
-      : '0 1px 3px rgba(0,0,0,0.5)';
-    if (isO) span.style.webkitTextStroke = '1px rgba(0,0,0,0.3)';
-    el.appendChild(span);
+    ci++; // skip \n entry
+    el.appendChild(col);
   });
 }
 
-function selectBubble(id) {
-  if (currentMode !== 'edit') return;
-  selectedId = id;
-  document.querySelectorAll('.bubble').forEach(b => {
-    b.classList.toggle('selected', b.dataset.bid === id);
+function setupDrag(el,b){
+  let sx,sy,ox,oy;
+  el.addEventListener('touchstart',e=>{
+    if(currentMode!=='move')return;
+    e.preventDefault();
+    el.classList.add('dragging');
+    const t=e.touches[0];sx=t.clientX;sy=t.clientY;ox=b.x;oy=b.y;
+    const onM=ev=>{
+      const tc=ev.touches[0];
+      b.x=ox+(tc.clientX-sx)/currentZoom;b.y=oy+(tc.clientY-sy)/currentZoom;
+      el.style.left=b.x+'px';el.style.top=b.y+'px';
+    };
+    const onE=()=>{el.classList.remove('dragging');window.removeEventListener('touchmove',onM);window.removeEventListener('touchend',onE)};
+    window.addEventListener('touchmove',onM,{passive:true});
+    window.addEventListener('touchend',onE);
+  },{passive:false});
+
+  el.addEventListener('mousedown',e=>{
+    if(currentMode!=='move')return;
+    e.stopPropagation();el.classList.add('dragging');
+    sx=e.clientX;sy=e.clientY;ox=b.x;oy=b.y;
+    const onM=ev=>{
+      b.x=ox+(ev.clientX-sx)/currentZoom;b.y=oy+(ev.clientY-sy)/currentZoom;
+      el.style.left=b.x+'px';el.style.top=b.y+'px';
+    };
+    const onU=()=>{el.classList.remove('dragging');window.removeEventListener('mousemove',onM);window.removeEventListener('mouseup',onU)};
+    window.addEventListener('mousemove',onM);window.addEventListener('mouseup',onU);
   });
-  renderEditor(); renderList();
 }
 
-function deleteBubble(id) {
-  const el = document.getElementById('bub-'+id);
-  if (el) el.remove();
-  bubbles = bubbles.filter(b => b.id !== id);
-  selectedId = null; renderEditor(); renderList();
+function deleteBubble(id){
+  const el=document.getElementById('bub-'+id);if(el)el.remove();
+  bubbles=bubbles.filter(b=>b.id!==id);renderEditorList();
+}
+function duplicateBubble(id){
+  const src=bubbles.find(b=>b.id===id);if(!src)return;
+  const nb={...src,id:genId(),x:src.x+20,y:src.y+20,distortSeed:Math.floor(Math.random()*2147483647)};
+  bubbles.push(nb);createBubbleDom(nb);renderEditorList();
+}
+function rerollDistortion(id){
+  const b=bubbles.find(x=>x.id===id);if(!b)return;
+  b.distortSeed=Math.floor(Math.random()*2147483647);
+  updateBubbleDom(b);
 }
 
-function duplicateBubble(id) {
-  const src = bubbles.find(b => b.id === id);
-  if (!src) return;
-  const nb = {...src, id: genId(), x: src.x+30, y: src.y+30};
-  bubbles.push(nb); createBubbleDom(nb); selectBubble(nb.id);
-}
-
-function clearBubbleDom() { document.querySelectorAll('.bubble').forEach(e => e.remove()); }
-function getSelected() { return bubbles.find(b => b.id === selectedId); }
-
-function renderEditor() {
-  const editor = $('#editor'), ph = $('#placeholder-msg'), b = getSelected();
-  if (!b || currentMode !== 'edit') {
-    editor.style.display = 'none'; ph.style.display = 'flex'; return;
+// --- Editor (edit mode) ---
+function renderEditorList(){
+  const area=$('#editor-area');
+  if(!bubbles.length){
+    area.innerHTML='<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span style="font-size:13px">吹き出しがまだありません</span><span style="font-size:11px">上のボタンから追加してください</span></div>';
+    return;
   }
-  ph.style.display = 'none'; editor.style.display = 'block';
-  const isO = b.type==='onomatopoeia', s = TYPES[b.type];
-  let h = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim)">${s.label}</span>
-      <div style="display:flex;gap:4px">
-        <button class="btn-small" style="background:var(--purple)" onclick="duplicateBubble('${b.id}')">複製</button>
-        <button class="btn-small" style="background:var(--red)" onclick="deleteBubble('${b.id}')">✕</button>
+  let html='';
+  bubbles.forEach((b,i)=>{
+    const s=TYPES[b.type],isO=b.type==='onomatopoeia';
+    const tagCls=isO?'tag-amber':'tag-purple';
+    html+=`<div class="card" id="card-${b.id}">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="tag ${tagCls}">${s.label}</span>
+          <span style="font-size:12px;color:var(--dim)">#${i+1}</span>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-sm" style="background:var(--purple);color:#fff;font-size:11px" onclick="duplicateBubble('${b.id}');return false">複製</button>
+          <button class="btn btn-sm" style="background:var(--red);color:#fff;font-size:11px" onclick="deleteBubble('${b.id}');return false">削除</button>
+        </div>
       </div>
-    </div>
-    <label class="lbl">テキスト</label>
-    <textarea id="ed-text" rows="4" placeholder="改行で列分割" oninput="updateField('text',this.value)">${escapeHtml(b.text)}</textarea>
-    <div style="font-size:11px;color:var(--dim);margin:2px 0 8px">改行 = 新しい列（縦書き）</div>`;
-  if (isO) {
-    h += `<label class="lbl">プリセット</label><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">`;
-    ONOM_PRESETS.forEach(p => {
-      h += `<button class="preset-btn ${b.text===p?'active':''}" onclick="updateField('text','${p}');renderEditor()">${p}</button>`;
+
+      <label class="lbl">テキスト</label>
+      <textarea data-id="${b.id}" data-field="text" oninput="uf(this)">${esc(b.text)}</textarea>
+      <div style="font-size:10px;color:var(--dim);margin:2px 0 8px">改行=新しい列</div>`;
+
+    if(isO){
+      html+=`<label class="lbl">プリセット</label><div class="preset-grid" style="margin-bottom:10px">`;
+      ONOM.forEach(p=>{
+        html+=`<button class="preset ${b.text===p?'active':''}" onclick="setPreset('${b.id}','${p}')">${p}</button>`;
+      });
+      html+=`</div>`;
+    }
+
+    html+=`<label class="lbl">フォントサイズ: ${b.fontSize}px</label>
+      <input type="range" min="12" max="80" value="${b.fontSize}" data-id="${b.id}" data-field="fontSize" oninput="uf(this)" style="margin-bottom:10px">
+
+      <label class="lbl">透明度: ${Math.round(b.opacity*100)}%</label>
+      <input type="range" min="0.05" max="1" step="0.05" value="${b.opacity}" data-id="${b.id}" data-field="opacity" oninput="uf(this)" style="margin-bottom:10px">`;
+
+    html+=`<label class="lbl">歪み: ${Math.round((b.distortAmount||0)*100)}%</label>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
+        <input type="range" min="0" max="2" step="0.05" value="${b.distortAmount||0}" data-id="${b.id}" data-field="distortAmount" oninput="uf(this)" style="flex:1">
+        <button class="btn btn-sm" style="background:var(--border);color:var(--dim);font-size:11px" onclick="rerollDistortion('${b.id}');renderEditorList()">🎲</button>
+      </div>`;
+
+    html+=`<label class="lbl">背景色</label><div class="swatch-row" style="margin-bottom:10px">`;
+    BG_COLORS.forEach(c=>{
+      html+=`<div class="swatch ${b.bg===c?'active':''}" onclick="setColor('${b.id}','bg','${c}')"><div class="swatch-checker"></div><div class="swatch-fill" style="background:${c}"></div></div>`;
     });
-    h += `</div>`;
-  }
-  h += `
-    <label class="lbl">フォントサイズ: ${b.fontSize}px</label>
-    <input type="range" min="12" max="80" value="${b.fontSize}" oninput="updateField('fontSize',+this.value)" style="margin-bottom:12px">
-    <label class="lbl">背景色</label>
-    <div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap">`;
-  BG_COLORS.forEach(c => {
-    h += `<div class="color-swatch ${b.bg===c?'active':''}" onclick="updateField('bg','${c}');renderEditor()">
-      <div class="color-swatch-checker"></div><div class="color-swatch-inner" style="background:${c}"></div></div>`;
-  });
-  h += `</div><label class="lbl">文字色</label><div style="display:flex;gap:4px;margin-bottom:12px">`;
-  TEXT_COLORS.forEach(c => {
-    h += `<div class="color-swatch ${b.color===c?'active':''}" style="background:${c}" onclick="updateField('color','${c}');renderEditor()"></div>`;
-  });
-  h += `</div>
-    <label class="lbl">タイプ切替</label>
-    <div style="display:flex;gap:4px;margin-bottom:12px">
-      <button class="type-btn ${b.type==='dialogue'?'active':''}" onclick="switchType('dialogue')">セリフ</button>
-      <button class="type-btn ${b.type==='onomatopoeia'?'active':''}" onclick="switchType('onomatopoeia')">オノマトペ</button>
-    </div>
-    <label class="lbl">位置 (x, y)</label>
-    <div style="display:flex;gap:6px;margin-bottom:12px">
-      <input type="number" value="${Math.round(b.x)}" oninput="updateField('x',+this.value)" style="width:50%">
-      <input type="number" value="${Math.round(b.y)}" oninput="updateField('y',+this.value)" style="width:50%">
+    html+=`</div><label class="lbl">文字色</label><div class="swatch-row" style="margin-bottom:10px">`;
+    TXT_COLORS.forEach(c=>{
+      html+=`<div class="swatch ${b.color===c?'active':''}" style="background:${c}" onclick="setColor('${b.id}','color','${c}')"></div>`;
+    });
+    html+=`</div>
+
+      <label class="lbl">タイプ</label>
+      <div class="type-row" style="margin-bottom:4px">
+        <button class="type-btn ${b.type==='dialogue'?'active':''}" onclick="switchType('${b.id}','dialogue')">セリフ</button>
+        <button class="type-btn ${b.type==='onomatopoeia'?'active':''}" onclick="switchType('${b.id}','onomatopoeia')">オノマトペ</button>
+      </div>
     </div>`;
-  editor.innerHTML = h;
-}
-
-function updateField(key, val) {
-  const b = getSelected(); if (!b) return;
-  b[key] = val; updateBubbleDom(b);
-  if (key==='text') renderList();
-}
-function switchType(type) {
-  const b = getSelected(); if (!b) return;
-  b.type = type; b.fontSize = TYPES[type].fontSize;
-  updateBubbleDom(b); renderEditor(); renderList();
-}
-function renderList() {
-  $('#bubble-count').textContent = bubbles.length;
-  const c = $('#list-items'); c.innerHTML = '';
-  bubbles.forEach(b => {
-    const d = document.createElement('div');
-    d.className = 'list-item'+(b.id===selectedId?' active':'');
-    d.onclick = () => { if(currentMode==='edit') selectBubble(b.id); };
-    d.innerHTML = `<span class="list-dot" style="background:${b.type==='onomatopoeia'?'var(--amber)':'var(--purple)'}"></span>
-      <span class="list-text">${escapeHtml(b.text.replace(/\n/g,' '))}</span>`;
-    c.appendChild(d);
   });
-}
-function escapeHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  area.innerHTML=html;
 }
 
-// Keyboard: Tab to toggle, Delete to remove
-document.addEventListener('keydown', e => {
-  if (e.key==='Tab' && imageData) { e.preventDefault(); setMode(currentMode==='move'?'edit':'move'); }
-  if ((e.key==='Delete'||e.key==='Backspace') && selectedId && currentMode==='edit') {
-    const a = document.activeElement;
-    if (a && (a.tagName==='TEXTAREA'||a.tagName==='INPUT')) return;
-    deleteBubble(selectedId);
+function uf(el){
+  const id=el.dataset.id,field=el.dataset.field;
+  const b=bubbles.find(x=>x.id===id);if(!b)return;
+  let v=el.value;
+  if(field==='fontSize')v=+v;
+  if(field==='opacity')v=parseFloat(v);
+  if(field==='distortAmount')v=parseFloat(v);
+  b[field]=v;
+  updateBubbleDom(b);
+  // Update labels without full re-render
+  const card=document.getElementById('card-'+id);
+  if(card){
+    if(field==='fontSize'){const l=card.querySelector('label[class="lbl"]');/* just update dom text for perf */}
   }
-});
+}
+function setPreset(id,text){
+  const b=bubbles.find(x=>x.id===id);if(!b)return;
+  b.text=text;updateBubbleDom(b);renderEditorList();
+}
+function setColor(id,field,val){
+  const b=bubbles.find(x=>x.id===id);if(!b)return;
+  b[field]=val;updateBubbleDom(b);renderEditorList();
+}
+function switchType(id,type){
+  const b=bubbles.find(x=>x.id===id);if(!b)return;
+  b.type=type;b.fontSize=TYPES[type].fontSize;
+  if(type==='onomatopoeia'&&!b.distortAmount)b.distortAmount=1.0;
+  if(type==='dialogue')b.distortAmount=0;
+  updateBubbleDom(b);renderEditorList();
+}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-// Export
-async function exportImage(format) {
-  if (!imageData) return;
-  const canvas = document.createElement('canvas');
-  canvas.width = imageW; canvas.height = imageH;
-  const ctx = canvas.getContext('2d');
-  const img = new Image();
-  await new Promise(r => { img.onload = r; img.src = imageData; });
-  ctx.drawImage(img, 0, 0);
+// --- Export ---
+async function exportImage(format){
+  if(!imageData)return;
+  // Switch to move mode briefly to show toast
+  toast('書き出し中…');
+  const canvas=document.createElement('canvas');
+  canvas.width=imageW;canvas.height=imageH;
+  const ctx=canvas.getContext('2d');
+  const img=new Image();
+  await new Promise(r=>{img.onload=r;img.src=imageData});
+  ctx.drawImage(img,0,0);
 
-  for (const b of bubbles) {
-    const s = TYPES[b.type], fs = b.fontSize, isO = b.type==='onomatopoeia';
-    ctx.font = `${s.weight==='bold'?'bold ':''}${fs}px "Hiragino Kaku Gothic ProN", sans-serif`;
-    const lines = b.text.split('\n');
-    const lineH = fs*1.4;
-    const charHeights = lines.map(l => Math.max(l.length*fs*1.2, fs));
-    const maxH = Math.max(...charHeights);
-    const totalW = lines.length * lineH;
-    const pad = s.padding;
+  for(const b of bubbles){
+    const s=TYPES[b.type],fs=b.fontSize,isO=b.type==='onomatopoeia';
+    const lines=b.text.split('\n');
+    const distChars=genDistortion(b.text,b.distortSeed);
+    const lineH=fs*1.4;
+    const charHeights=lines.map(l=>Math.max(l.length*fs*1.2,fs));
+    const maxH=Math.max(...charHeights);
+    const totalW=lines.length*lineH;
+    const pad=s.padding;
 
-    ctx.fillStyle = b.bg;
-    roundRect(ctx, b.x, b.y, totalW+pad*2, maxH+pad*2, s.radius);
+    ctx.globalAlpha=b.opacity;
+    ctx.fillStyle=b.bg;
+    roundRect(ctx,b.x,b.y,totalW+pad*2,maxH+pad*2,s.radius);
     ctx.fill();
 
-    ctx.fillStyle = b.color;
-    ctx.font = `${s.weight==='bold'?'bold ':''}${fs}px "Hiragino Kaku Gothic ProN", sans-serif`;
-    ctx.textBaseline = 'middle';
-    lines.forEach((line, li) => {
-      const colX = b.x + pad + (lines.length-1-li)*lineH + lineH/2;
-      let charY = b.y + pad + fs*0.6;
-      for (const ch of line) {
-        if (isO) { ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=3; ctx.strokeText(ch,colX,charY); }
-        ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=isO?6:3;
-        ctx.fillText(ch, colX, charY);
-        ctx.shadowBlur=0; charY += fs*1.2;
+    ctx.fillStyle=b.color;
+    ctx.textBaseline='middle';
+    const fontStr=`${s.weight==='bold'?'bold ':''}${fs}px "Hiragino Kaku Gothic ProN",sans-serif`;
+    ctx.font=fontStr;
+
+    let ci=0;
+    lines.forEach((line,li)=>{
+      const colX=b.x+pad+(lines.length-1-li)*lineH+lineH/2;
+      let charY=b.y+pad+fs*0.6;
+      for(const ch of line){
+        const d=distChars[ci++]||{rot:0,scale:1,dx:0,dy:0};
+        const amt=b.distortAmount||0;
+        ctx.save();
+        ctx.translate(colX+d.dx*amt,charY+d.dy*amt);
+        ctx.rotate(d.rot*amt*Math.PI/180);
+        ctx.scale(1+(d.scale-1)*amt,1+(d.scale-1)*amt);
+        if(isO){ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.lineWidth=3;ctx.strokeText(ch,0,0)}
+        ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=isO?6:3;
+        ctx.fillText(ch,0,0);
+        ctx.shadowBlur=0;
+        ctx.restore();
+        charY+=fs*1.2;
       }
+      ci++; // skip \n
     });
+    ctx.globalAlpha=1;
   }
 
-  const mime = format==='jpeg' ? 'image/jpeg' : 'image/png';
-  const q = format==='jpeg' ? 0.92 : undefined;
-  canvas.toBlob(blob => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `bubble_output.${format}`;
-    a.click(); URL.revokeObjectURL(url);
-  }, mime, q);
+  const mime=format==='jpeg'?'image/jpeg':'image/png';
+  const q=format==='jpeg'?.92:undefined;
+  canvas.toBlob(blob=>{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=`bubble_output.${format}`;a.click();
+    URL.revokeObjectURL(url);
+    toast('保存しました');
+  },mime,q);
 }
 
-function roundRect(ctx,x,y,w,h,r) {
-  ctx.beginPath(); ctx.moveTo(x+r,y);
-  ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
-  ctx.closePath();
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
 }
+
+// Keyboard shortcut
+document.addEventListener('keydown',e=>{
+  if(e.key==='Tab'&&imageData){e.preventDefault();setMode(currentMode==='move'?'edit':'move')}
+});
 </script>
 </body>
 </html>
