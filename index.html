@@ -22,16 +22,15 @@
   .mode-btn.active{background:var(--accent);color:#000}
   #canvas-area{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:8px;-webkit-overflow-scrolling:touch}
   #drop-zone{width:280px;height:200px;border:2px dashed var(--border);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:8px}
-  #canvas-wrapper{position:relative;display:none;flex-shrink:0;transform-origin:center center}
+  #canvas-wrapper{position:relative;display:none;flex-shrink:0;transform-origin:center center;overflow:visible}
   #canvas-wrapper img{display:block;pointer-events:none}
-  .bubble{position:absolute;user-select:none;touch-action:none}
+  .bubble{position:absolute;user-select:none;touch-action:none;overflow:visible}
   .bubble.move-mode{cursor:grab}
   .bubble.move-mode:active{cursor:grabbing}
-  .bubble.dragging .bubble-inner{filter:brightness(1.1)}
-  .bubble-inner{position:relative;display:inline-block}
+  .bubble.dragging .bubble-inner{filter:brightness(1.15)}
+  .bubble-inner{position:relative;display:inline-block;overflow:visible}
   .bubble-body{writing-mode:vertical-rl;text-orientation:mixed;line-height:1.5;position:relative;z-index:1}
   .bubble-line{display:block}
-  .bubble-shape-svg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible}
   .bubble-dot{position:absolute;border-radius:50%;pointer-events:none}
   #editor-area{flex:1;overflow-y:auto;padding:10px;display:none;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
   .card{background:var(--panel);border-radius:12px;padding:12px;border:1px solid var(--border)}
@@ -52,7 +51,7 @@
   .chip.active{border-color:var(--accent)}
   .font-chip{min-width:60px}
   .shape-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px}
-  .shape-chip{padding:6px 4px;border-radius:6px;font-size:10px;font-weight:600;text-align:center;cursor:pointer;border:2px solid transparent;background:var(--border);color:var(--text);transition:all .12s;line-height:1.2}
+  .shape-chip{padding:6px 4px;border-radius:6px;font-size:10px;font-weight:600;text-align:center;cursor:pointer;border:2px solid transparent;background:var(--border);color:var(--text);line-height:1.2}
   .shape-chip.active{border-color:var(--accent);background:var(--accent);color:#000}
   .type-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:10px}
   .type-chip{padding:6px 2px;border-radius:6px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;border:2px solid transparent}
@@ -69,7 +68,7 @@
   #add-sheet-body{position:relative;background:var(--panel);border-radius:16px 16px 0 0;padding:16px;max-height:70vh;overflow-y:auto;padding-bottom:max(16px,env(safe-area-inset-bottom))}
   .sheet-title{font-size:15px;font-weight:700;margin-bottom:12px;text-align:center}
   .sheet-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .sheet-item{padding:12px 8px;border-radius:10px;text-align:center;cursor:pointer;transition:transform .15s;border:1px solid var(--border)}
+  .sheet-item{padding:12px 8px;border-radius:10px;text-align:center;cursor:pointer;border:1px solid var(--border)}
   .sheet-item:active{transform:scale(.95)}
   .sheet-item-label{font-size:13px;font-weight:700;margin-bottom:2px}
   .sheet-item-desc{font-size:10px;opacity:.7}
@@ -111,20 +110,20 @@
 
 <script>
 const FONTS=[
-  {key:'noto-sans',label:'ゴシック',family:'"Noto Sans JP",sans-serif'},
-  {key:'noto-serif',label:'明朝',family:'"Noto Serif JP",serif'},
-  {key:'mplus-r',label:'丸ゴ',family:'"M PLUS Rounded 1c",sans-serif'},
-  {key:'zen-maru',label:'Zen丸',family:'"Zen Maru Gothic",sans-serif'},
-  {key:'klee',label:'硬筆',family:'"Klee One",cursive'},
-  {key:'yusei',label:'手書き',family:'"Yusei Magic",sans-serif'},
-  {key:'hachi',label:'ポップ',family:'"Hachi Maru Pop",cursive'},
-  {key:'reggae',label:'レゲエ',family:'"Reggae One",cursive'},
-  {key:'kurenaido',label:'くれない',family:'"Zen Kurenaido",sans-serif'},
-  {key:'dot',label:'ドット',family:'"DotGothic16",sans-serif'},
+  {key:'noto-sans',label:'ゴシック',family:'Noto Sans JP, sans-serif'},
+  {key:'noto-serif',label:'明朝',family:'Noto Serif JP, serif'},
+  {key:'mplus-r',label:'丸ゴ',family:'M PLUS Rounded 1c, sans-serif'},
+  {key:'zen-maru',label:'Zen丸',family:'Zen Maru Gothic, sans-serif'},
+  {key:'klee',label:'硬筆',family:'Klee One, cursive'},
+  {key:'yusei',label:'手書き',family:'Yusei Magic, sans-serif'},
+  {key:'hachi',label:'ポップ',family:'Hachi Maru Pop, cursive'},
+  {key:'reggae',label:'レゲエ',family:'Reggae One, cursive'},
+  {key:'kurenaido',label:'くれない',family:'Zen Kurenaido, sans-serif'},
+  {key:'dot',label:'ドット',family:'DotGothic16, sans-serif'},
 ];
 const SHAPES=[
   {key:'rounded',label:'角丸'},{key:'sharp',label:'四角'},{key:'pill',label:'まる'},
-  {key:'tail',label:'しっぽ',hasTail:true},{key:'thought',label:'もくもく',hasTail:true},
+  {key:'tail',label:'しっぽ'},{key:'thought',label:'もくもく'},
   {key:'spike',label:'爆発'},{key:'spike2',label:'ギザ'},{key:'diamond',label:'ひし形'},
   {key:'hexagon',label:'六角'},{key:'trapezoid',label:'台形'},{key:'slash',label:'斜め'},{key:'notch',label:'ノッチ'},
 ];
@@ -166,17 +165,16 @@ function spikePath(w,h,points,depth){
   const cx=w/2,cy=h/2,rx=w/2,ry=h/2,pts=[],total=points*2;
   for(let i=0;i<total;i++){const ang=(i/total)*Math.PI*2-Math.PI/2;const r=i%2===0?1:(1-depth);pts.push({x:cx+Math.cos(ang)*rx*r,y:cy+Math.sin(ang)*ry*r})}return pts;
 }
-function polyToSVG(pts){return pts.map(p=>p.x+','+p.y).join(' ')}
+function polyToSVG(pts){return pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ')}
 function needsPoly(s){return['spike','spike2','diamond','hexagon','trapezoid','slash','notch'].includes(s)}
 function hasTailAngle(s){return s==='tail'||s==='thought'}
-
 function getTailPoints(bw,bh,angle,len){
   const rad=angle*Math.PI/180,cx=bw/2,cy=bh/2,dx=Math.cos(rad),dy=Math.sin(rad);
   let t=Infinity;
   if(dx!==0){const t1=(bw-cx)/dx,t2=-cx/dx;if(t1>0)t=Math.min(t,t1);if(t2>0)t=Math.min(t,t2)}
   if(dy!==0){const t1=(bh-cy)/dy,t2=-cy/dy;if(t1>0)t=Math.min(t,t1);if(t2>0)t=Math.min(t,t2)}
-  const ex=cx+dx*t,ey=cy+dy*t,tipX=ex+dx*len,tipY=ey+dy*len,px=-dy*8,py=dx*8;
-  return{tipX,tipY,b1x:ex+px,b1y:ey+py,b2x:ex-px,b2y:ey-py};
+  const ex=cx+dx*t,ey=cy+dy*t;
+  return{tipX:ex+dx*len,tipY:ey+dy*len,b1x:ex-dy*8,b1y:ey+dx*8,b2x:ex+dy*8,b2y:ey-dx*8};
 }
 function getThoughtDots(bw,bh,angle){
   const rad=angle*Math.PI/180,cx=bw/2,cy=bh/2,dx=Math.cos(rad),dy=Math.sin(rad);
@@ -186,10 +184,10 @@ function getThoughtDots(bw,bh,angle){
   const ex=cx+dx*t,ey=cy+dy*t;
   return[{x:ex+dx*10,y:ey+dy*10,r:6},{x:ex+dx*22,y:ey+dy*22,r:4},{x:ex+dx*32,y:ey+dy*32,r:3}];
 }
-function getFontFamily(b){const f=FONTS.find(x=>x.key===b.font);return f?f.family:'"Noto Sans JP",sans-serif'}
+function getFontFamily(b){const f=FONTS.find(x=>x.key===b.font);return f?f.family:'Noto Sans JP, sans-serif'}
 
-// Init sheet
-(function(){const g=$('#sheet-grid');let h='';Object.entries(BTYPES).forEach(([k,t])=>{h+=`<div class="sheet-item" style="background:${t.chipBg}" onclick="addBubble('${k}');closeAddSheet()"><div class="sheet-item-preview" style="background:${t.bg};color:${t.color};font-weight:${t.weight};font-size:12px;border-radius:${Math.min(t.radius,8)}px">${t.defaultText.slice(0,4)}</div><div class="sheet-item-label" style="color:${t.chipColor}">${t.label}</div><div class="sheet-item-desc" style="color:${t.chipColor}">${t.desc}</div></div>`});g.innerHTML=h})();
+// Init
+(function(){const g=$('#sheet-grid');let h='';Object.entries(BTYPES).forEach(([k,t])=>{h+=`<div class="sheet-item" style="background:${t.chipBg}" onclick="addBubble('${k}');closeAddSheet()"><div class="sheet-item-preview" style="background:${t.bg};color:${t.color};font-weight:${t.weight};font-size:12px">${t.defaultText.slice(0,4)}</div><div class="sheet-item-label" style="color:${t.chipColor}">${t.label}</div><div class="sheet-item-desc" style="color:${t.chipColor}">${t.desc}</div></div>`});g.innerHTML=h})();
 function openAddSheet(){$('#add-sheet').classList.add('open')}
 function closeAddSheet(){$('#add-sheet').classList.remove('open')}
 function setMode(mode){currentMode=mode;$('#m-move').classList.toggle('active',mode==='move');$('#m-edit').classList.toggle('active',mode==='edit');$('#canvas-area').style.display=mode==='move'?'flex':'none';$('#editor-area').style.display=mode==='edit'?'flex':'none';$('#zoom-row').style.display=mode==='move'?'flex':'none';if(mode==='edit')renderEditor();toast(mode==='move'?'移動モード':'編集モード')}
@@ -202,53 +200,104 @@ function fitZoom(){const a=$('#canvas-area');const z=Math.min((a.clientWidth-16)
 function setZoom(v){currentZoom=parseFloat(v);wrapper.style.transform=`scale(${currentZoom})`;$('#zoom-label').textContent=Math.round(currentZoom*100)+'%'}
 function genId(){return'b'+(++idC)}
 
-// ===== Bubbles =====
+// ===== Bubbles — ALL DOM construction, NO innerHTML for styles =====
 function addBubble(typeKey){
   const t=BTYPES[typeKey];if(!t)return;
   const b={id:genId(),type:typeKey,text:t.defaultText,x:30+Math.random()*80,y:30+Math.random()*80,fontSize:t.fontSize,bg:t.bg,color:t.color,opacity:1.0,shape:'rounded',font:'noto-sans',tailAngle:180};
   bubbles.push(b);createBubbleDom(b);if(currentMode==='edit')renderEditor();
 }
-function createBubbleDom(b){const el=document.createElement('div');el.className='bubble move-mode';el.id='bub-'+b.id;el.dataset.bid=b.id;updateBubbleDom(b,el);setupDrag(el,b);wrapper.appendChild(el)}
+function createBubbleDom(b){
+  const el=document.createElement('div');
+  el.className='bubble move-mode';el.id='bub-'+b.id;el.dataset.bid=b.id;
+  updateBubbleDom(b,el);setupDrag(el,b);wrapper.appendChild(el);
+}
 
+// Key fix: build DOM elements directly, set style properties via JS (no quote issues)
 function updateBubbleDom(b,el){
   if(!el)el=document.getElementById('bub-'+b.id);if(!el)return;
   const t=BTYPES[b.type]||BTYPES.normal;
   el.style.left=b.x+'px';el.style.top=b.y+'px';el.style.opacity=b.opacity;
+  el.style.overflow='visible';
+
+  // Clear children
+  while(el.firstChild)el.removeChild(el.firstChild);
+
   const isPoly=needsPoly(b.shape);
   const margin=isPoly?12:0;
   const radius=b.shape==='sharp'?0:b.shape==='pill'?999:b.shape==='thought'?16:t.radius;
-  const fontFamily=getFontFamily(b);
+
+  // Inner container
+  const inner=document.createElement('div');
+  inner.className='bubble-inner';
+
+  // Body
+  const body=document.createElement('div');
+  body.className='bubble-body';
+  const s=body.style;
+  s.padding=(t.padding+margin)+'px';
+  s.fontSize=b.fontSize+'px';
+  s.fontWeight=t.weight;
+  s.fontFamily=getFontFamily(b); // Set directly — no quote escaping issue!
+  s.color=b.color;
+  s.textShadow='0 1px 4px rgba(0,0,0,0.6)';
+  s.lineHeight='1.5';
+  if(!isPoly){
+    s.background=b.bg;
+    s.borderRadius=radius+'px';
+  }
+
+  // Text lines
   const lines=b.text.split('\n');
-  let linesHTML='';lines.forEach(l=>{linesHTML+=`<span class="bubble-line">${escH(l)}</span>`});
+  lines.forEach(lineText=>{
+    const span=document.createElement('span');
+    span.className='bubble-line';
+    span.textContent=lineText;
+    body.appendChild(span);
+  });
 
-  let bodyStyle=`padding:${t.padding+margin}px;font-size:${b.fontSize}px;font-weight:${t.weight};font-family:${fontFamily};color:${b.color};text-shadow:0 1px 4px rgba(0,0,0,0.6);`;
-  if(!isPoly)bodyStyle+=`background:${b.bg};border-radius:${radius}px;`;
+  inner.appendChild(body);
+  el.appendChild(inner);
 
-  el.innerHTML=`<div class="bubble-inner"><div class="bubble-body" style="${bodyStyle}">${linesHTML}</div></div>`;
-  const body=el.querySelector('.bubble-body'),inner=el.querySelector('.bubble-inner');
-  const bw=body.offsetWidth,bh=body.offsetHeight;
-
+  // Polygon SVG background (need to measure body first)
   if(isPoly){
+    const bw=body.offsetWidth||100, bh=body.offsetHeight||50;
     const pts=shapePath(b.shape,bw,bh);
     if(pts){
       const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-      svg.setAttribute('width',bw);svg.setAttribute('height',bh);svg.style.cssText='position:absolute;top:0;left:0;pointer-events:none';
+      svg.setAttribute('width',bw);svg.setAttribute('height',bh);
+      svg.style.cssText='position:absolute;top:0;left:0;pointer-events:none';
       const poly=document.createElementNS('http://www.w3.org/2000/svg','polygon');
-      poly.setAttribute('points',polyToSVG(pts));poly.setAttribute('fill',b.bg);
+      poly.setAttribute('points',polyToSVG(pts));
+      poly.setAttribute('fill',b.bg);
       svg.appendChild(poly);inner.insertBefore(svg,body);
     }
   }
+
+  // Tail SVG
   if(b.shape==='tail'){
-    const tp=getTailPoints(bw,bh,b.tailAngle,18);const pad=30;
+    const bw=body.offsetWidth||100,bh=body.offsetHeight||50;
+    const tp=getTailPoints(bw,bh,b.tailAngle,18);
+    const pad=30;
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('width',bw+pad*2);svg.setAttribute('height',bh+pad*2);
     svg.style.cssText=`position:absolute;left:${-pad}px;top:${-pad}px;pointer-events:none;overflow:visible`;
     const poly=document.createElementNS('http://www.w3.org/2000/svg','polygon');
-    poly.setAttribute('points',`${tp.b1x+pad},${tp.b1y+pad} ${tp.tipX+pad},${tp.tipY+pad} ${tp.b2x+pad},${tp.b2y+pad}`);
+    poly.setAttribute('points',`${(tp.b1x+pad).toFixed(1)},${(tp.b1y+pad).toFixed(1)} ${(tp.tipX+pad).toFixed(1)},${(tp.tipY+pad).toFixed(1)} ${(tp.b2x+pad).toFixed(1)},${(tp.b2y+pad).toFixed(1)}`);
     poly.setAttribute('fill',b.bg);svg.appendChild(poly);inner.appendChild(svg);
-  }else if(b.shape==='thought'){
+  }
+
+  // Thought dots
+  if(b.shape==='thought'){
+    const bw=body.offsetWidth||100,bh=body.offsetHeight||50;
     const dots=getThoughtDots(bw,bh,b.tailAngle);
-    dots.forEach(d=>{const dot=document.createElement('div');dot.className='bubble-dot';dot.style.cssText=`width:${d.r*2}px;height:${d.r*2}px;left:${d.x-d.r}px;top:${d.y-d.r}px;background:${b.bg}`;inner.appendChild(dot)});
+    dots.forEach(d=>{
+      const dot=document.createElement('div');
+      dot.className='bubble-dot';
+      dot.style.width=d.r*2+'px';dot.style.height=d.r*2+'px';
+      dot.style.left=(d.x-d.r)+'px';dot.style.top=(d.y-d.r)+'px';
+      dot.style.background=b.bg;
+      inner.appendChild(dot);
+    });
   }
 }
 
@@ -265,7 +314,7 @@ function setupAngleDial(d,b){
   d.addEventListener('touchstart',e=>{e.preventDefault();upd(e);const onM=ev=>{ev.preventDefault();upd(ev)};const onE=()=>{window.removeEventListener('touchmove',onM);window.removeEventListener('touchend',onE)};window.addEventListener('touchmove',onM,{passive:false});window.addEventListener('touchend',onE)},{passive:false});
 }
 
-// ===== Editor =====
+// ===== Editor (innerHTML is fine here — no font-family in style attrs) =====
 function renderEditor(){
   const area=$('#editor-area');
   if(!bubbles.length){area.innerHTML='<div class="empty-state"><span style="font-size:13px">吹き出しがまだありません</span></div>';return}
@@ -276,9 +325,8 @@ function renderEditor(){
       <label class="lbl">テキスト</label><textarea data-id="${b.id}" data-field="text" oninput="uf(this)">${escH(b.text)}</textarea><div style="font-size:10px;color:var(--dim);margin:2px 0 6px">改行=新しい列</div>
       <label class="lbl" id="lbl-fs-${b.id}">サイズ: ${b.fontSize}px</label><input type="range" min="12" max="60" value="${b.fontSize}" data-id="${b.id}" data-field="fontSize" oninput="uf(this)" style="margin-bottom:8px">
       <label class="lbl" id="lbl-op-${b.id}">透明度: ${Math.round(b.opacity*100)}%</label><input type="range" min="5" max="100" step="5" value="${Math.round(b.opacity*100)}" data-id="${b.id}" data-field="opacityPct" oninput="uf(this)" style="margin-bottom:8px">
-      <label class="lbl">フォント</label><div class="chip-row" style="margin-bottom:8px">`;
-    FONTS.forEach(f=>{h+=`<div class="chip font-chip ${b.font===f.key?'active':''}" style="background:var(--border);color:var(--text);font-family:${f.family}" onclick="setField('${b.id}','font','${f.key}')">${f.label}</div>`});
-    h+=`</div><label class="lbl">形</label><div class="shape-grid">`;
+      <label class="lbl">フォント</label><div class="chip-row" style="margin-bottom:8px" id="fonts-${b.id}"></div>
+      <label class="lbl">形</label><div class="shape-grid">`;
     SHAPES.forEach(s=>{h+=`<div class="shape-chip ${b.shape===s.key?'active':''}" onclick="setField('${b.id}','shape','${s.key}')">${s.label}</div>`});
     h+=`</div>`;
     if(showAngle){h+=`<label class="lbl" id="lbl-ang-${b.id}">角度: ${b.tailAngle}°</label><div class="angle-dial-wrap"><div class="angle-dial" id="dial-${b.id}"><div class="angle-dial-arrow" style="transform:rotate(${b.tailAngle-90}deg);left:calc(50% - 1px);top:calc(50% - 20px)"></div><div class="angle-dial-dot" style="left:calc(50% - 3px);top:calc(50% - 3px)"></div></div><div style="font-size:11px;color:var(--dim);line-height:1.5">ダイヤルをドラッグ<br>して方向を設定</div></div>`}
@@ -291,8 +339,27 @@ function renderEditor(){
     h+=`</div></div>`;
   });
   area.innerHTML=h;
+
+  // Build font chips via DOM (avoids font-family quote issues in innerHTML)
+  bubbles.forEach(b=>{
+    const container=document.getElementById('fonts-'+b.id);
+    if(!container)return;
+    FONTS.forEach(f=>{
+      const chip=document.createElement('div');
+      chip.className='chip font-chip'+(b.font===f.key?' active':'');
+      chip.style.background='var(--border)';
+      chip.style.color='var(--text)';
+      chip.style.fontFamily=f.family;
+      chip.textContent=f.label;
+      chip.onclick=()=>setField(b.id,'font',f.key);
+      container.appendChild(chip);
+    });
+  });
+
+  // Setup angle dials
   bubbles.forEach(b=>{if(hasTailAngle(b.shape)){const d=document.getElementById('dial-'+b.id);if(d)setupAngleDial(d,b)}});
 }
+
 function uf(el){const id=el.dataset.id,field=el.dataset.field;const b=bubbles.find(x=>x.id===id);if(!b)return;
   if(field==='text')b.text=el.value;
   else if(field==='fontSize'){b.fontSize=+el.value;const l=document.getElementById('lbl-fs-'+id);if(l)l.textContent='サイズ: '+el.value+'px'}
@@ -302,49 +369,21 @@ function setField(id,field,val){const b=bubbles.find(x=>x.id===id);if(!b)return;
 function changeType(id,typeKey){const b=bubbles.find(x=>x.id===id);if(!b)return;const t=BTYPES[typeKey];b.type=typeKey;b.fontSize=t.fontSize;b.bg=t.bg;b.color=t.color;updateBubbleDom(b);renderEditor()}
 function escH(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-// ===== EXPORT via html2canvas — WYSIWYG =====
+// ===== Export via html2canvas =====
 async function exportImage(format){
   if(!imageData)return;
   toast('書き出し中…');
-
-  // Ensure move mode so wrapper is visible
   const wasEdit=currentMode==='edit';
   if(wasEdit){$('#canvas-area').style.display='flex';$('#editor-area').style.display='none'}
-
-  // Remove zoom transform, remove dragging outlines
-  const origTransform=wrapper.style.transform;
-  wrapper.style.transform='scale(1)';
+  const origT=wrapper.style.transform;wrapper.style.transform='scale(1)';
   document.querySelectorAll('.bubble').forEach(b=>b.classList.remove('dragging'));
-
-  // Small delay for reflow
-  await new Promise(r=>setTimeout(r,100));
-
+  await new Promise(r=>setTimeout(r,150));
   try{
-    const canvas=await html2canvas(wrapper,{
-      width:imageW,height:imageH,
-      scale:1,
-      useCORS:true,
-      allowTaint:true,
-      backgroundColor:null,
-      logging:false,
-    });
-
+    const canvas=await html2canvas(wrapper,{width:imageW,height:imageH,scale:1,useCORS:true,allowTaint:true,backgroundColor:null,logging:false});
     const mime=format==='jpeg'?'image/jpeg':'image/png';
-    const q=format==='jpeg'?0.92:undefined;
-    canvas.toBlob(blob=>{
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url;a.download=`bubble_output.${format}`;a.click();
-      URL.revokeObjectURL(url);
-      toast('保存しました');
-    },mime,q);
-  }catch(err){
-    console.error(err);
-    toast('エラー: '+err.message);
-  }
-
-  // Restore
-  wrapper.style.transform=origTransform;
+    canvas.toBlob(blob=>{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`bubble_output.${format}`;a.click();URL.revokeObjectURL(url);toast('保存しました')},mime,format==='jpeg'?.92:undefined);
+  }catch(err){console.error(err);toast('エラー: '+err.message)}
+  wrapper.style.transform=origT;
   if(wasEdit){$('#canvas-area').style.display='none';$('#editor-area').style.display='flex'}
 }
 
