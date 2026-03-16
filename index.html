@@ -64,14 +64,31 @@
     border-radius: 4px;
     color: #fff;
   }
+  .mode-toggle {
+    display: flex;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+  }
+  .mode-btn {
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+    color: var(--dim);
+    border: none;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .mode-btn.active { background: var(--accent); color: #000; }
+  .mode-btn:not(.active):hover { background: var(--border); }
 
   #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   #canvas-area {
-    flex: 1;
-    overflow: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    flex: 1; overflow: auto;
+    display: flex; align-items: center; justify-content: center;
     padding: 16px;
   }
   #drop-zone {
@@ -85,41 +102,43 @@
   }
   #drop-zone:hover { border-color: var(--accent); }
   #canvas-wrapper {
-    position: relative;
-    display: none;
-    flex-shrink: 0;
-    transform-origin: center center;
+    position: relative; display: none;
+    flex-shrink: 0; transform-origin: center center;
   }
-  #canvas-wrapper img {
-    display: block;
-    pointer-events: none;
-  }
+  #canvas-wrapper img { display: block; pointer-events: none; }
   .bubble {
     position: absolute;
     writing-mode: vertical-rl;
     display: inline-flex;
     flex-direction: row-reverse;
-    cursor: move;
     user-select: none;
     transition: outline 0.15s;
     outline: 2px solid transparent;
     outline-offset: 2px;
   }
   .bubble.selected { outline: 2px solid var(--accent); z-index: 10; }
-  .bubble-col {
-    white-space: nowrap;
-    line-height: 1.4;
-  }
+  .bubble.move-mode { cursor: grab; }
+  .bubble.move-mode:active { cursor: grabbing; }
+  .bubble.edit-mode { cursor: pointer; }
+  .bubble.move-mode:hover { outline: 2px solid rgba(56,189,248,0.5); }
+  .bubble-col { white-space: nowrap; line-height: 1.4; }
 
-  /* Right panel */
-  #panel {
-    width: 280px;
-    background: var(--panel);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+  #mode-indicator {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    pointer-events: none; z-index: 100; transition: all 0.3s; opacity: 0;
   }
+  #mode-indicator.show { opacity: 1; }
+  #mode-indicator.move { background: rgba(56,189,248,0.9); color: #000; }
+  #mode-indicator.edit { background: rgba(99,102,241,0.9); color: #fff; }
+
+  #panel {
+    width: 280px; background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+    transition: width 0.25s, opacity 0.25s;
+  }
+  #panel.collapsed { width: 0; opacity: 0; overflow: hidden; border-left: none; }
   #editor { flex: 1; overflow: auto; padding: 12px; }
   #placeholder-msg {
     flex: 1; display: flex; flex-direction: column;
@@ -146,22 +165,17 @@
     position: relative; overflow: hidden;
   }
   .color-swatch.active { border-color: var(--accent); }
-  .color-swatch-inner {
-    position: absolute; inset: 0; border-radius: 3px;
-  }
+  .color-swatch-inner { position: absolute; inset: 0; border-radius: 3px; }
   .color-swatch-checker {
     position: absolute; inset: 0;
     background-image:
       linear-gradient(45deg,#333 25%,transparent 25%,transparent 75%,#333 75%),
       linear-gradient(45deg,#333 25%,transparent 25%,transparent 75%,#333 75%);
-    background-size: 8px 8px;
-    background-position: 0 0, 4px 4px;
+    background-size: 8px 8px; background-position: 0 0, 4px 4px;
   }
   .preset-btn {
-    padding: 3px 8px; border-radius: 4px;
-    font-size: 12px; cursor: pointer;
-    background: var(--border); color: var(--dim);
-    border: none;
+    padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;
+    background: var(--border); color: var(--dim); border: none;
   }
   .preset-btn.active { background: var(--amber); color: #000; }
   .type-btn {
@@ -170,8 +184,6 @@
     background: var(--border); color: var(--dim);
   }
   .type-btn.active { background: var(--accent); color: #000; }
-
-  /* Bubble list */
   #bubble-list { border-top: 1px solid var(--border); max-height: 200px; overflow: auto; }
   .list-header {
     font-size: 11px; font-weight: 600; text-transform: uppercase;
@@ -185,7 +197,6 @@
   .list-item.active { background: var(--border); border-left-color: var(--accent); }
   .list-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   .list-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
   .zoom-group { display: flex; align-items: center; gap: 4px; font-size: 13px; }
   .zoom-group span { color: var(--dim); }
 </style>
@@ -199,6 +210,17 @@
     <div class="sep"></div>
     <button class="btn btn-purple" id="btn-add-dialogue" disabled onclick="addBubble('dialogue')">+ セリフ</button>
     <button class="btn btn-amber" id="btn-add-onom" disabled onclick="addBubble('onomatopoeia')">+ オノマトペ</button>
+    <div class="sep"></div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="mode-move" onclick="setMode('move')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+        移動
+      </button>
+      <button class="mode-btn" id="mode-edit" onclick="setMode('edit')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        編集
+      </button>
+    </div>
     <div style="flex:1"></div>
     <div class="zoom-group">
       <span>Zoom</span>
@@ -224,20 +246,22 @@
   </div>
 </div>
 
-<div id="panel">
+<div id="panel" class="collapsed">
   <div id="editor" style="display:none"></div>
   <div id="placeholder-msg">
     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
       <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
     </svg>
     <span style="font-size:13px">吹き出しを選択して編集</span>
-    <span style="font-size:11px">ツールバーから追加できます</span>
+    <span style="font-size:11px">編集モードに切り替えてください</span>
   </div>
   <div id="bubble-list">
     <div class="list-header">吹き出し一覧 (<span id="bubble-count">0</span>)</div>
     <div id="list-items"></div>
   </div>
 </div>
+
+<div id="mode-indicator"></div>
 
 <script>
 const TYPES = {
@@ -250,7 +274,6 @@ const TYPES = {
     fontSize: 42, radius: 8, padding: 12, weight: "bold", spacing: 8, stroke: true
   }
 };
-
 const BG_COLORS = [
   "rgba(0,0,0,0.65)","rgba(0,0,0,0.45)","rgba(0,0,0,0.8)",
   "rgba(30,30,60,0.7)","rgba(60,20,20,0.65)","rgba(20,40,60,0.7)","rgba(255,255,255,0.6)"
@@ -262,24 +285,50 @@ const ONOM_PRESETS = [
   "きゅん","ドキドキ","ぐっ…","チラッ","ふるっ"
 ];
 
-let imageData = null;
-let imageW = 0, imageH = 0;
-let bubbles = [];
-let selectedId = null;
-let currentZoom = 1;
-let idCounter = 0;
+let imageData = null, imageW = 0, imageH = 0;
+let bubbles = [], selectedId = null, currentZoom = 1;
+let currentMode = 'move';
+let idCounter = 0, indicatorTimer = null;
 
-const $ = (s) => document.querySelector(s);
+const $ = s => document.querySelector(s);
 const fileInput = $('#file-input');
-const dropZone = $('#drop-zone');
 const wrapper = $('#canvas-wrapper');
 const canvasImg = $('#canvas-img');
 
-fileInput.addEventListener('change', (e) => {
+function setMode(mode) {
+  currentMode = mode;
+  $('#mode-move').classList.toggle('active', mode === 'move');
+  $('#mode-edit').classList.toggle('active', mode === 'edit');
+  const panel = $('#panel');
+  if (mode === 'move') {
+    panel.classList.add('collapsed');
+    selectedId = null;
+    document.querySelectorAll('.bubble').forEach(b => b.classList.remove('selected'));
+  } else {
+    panel.classList.remove('collapsed');
+    renderEditor();
+  }
+  document.querySelectorAll('.bubble').forEach(b => {
+    b.classList.toggle('move-mode', mode === 'move');
+    b.classList.toggle('edit-mode', mode === 'edit');
+  });
+  showIndicator(mode === 'move' ? '移動モード — ドラッグで配置' : '編集モード — クリックで編集', mode);
+  renderList();
+}
+
+function showIndicator(text, type) {
+  const el = $('#mode-indicator');
+  el.textContent = text;
+  el.className = 'show ' + type;
+  clearTimeout(indicatorTimer);
+  indicatorTimer = setTimeout(() => { el.className = ''; }, 1500);
+}
+
+fileInput.addEventListener('change', e => {
   const file = e.target.files?.[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (ev) => {
+  reader.onload = ev => {
     const img = new Image();
     img.onload = () => {
       imageW = img.width; imageH = img.height;
@@ -290,36 +339,30 @@ fileInput.addEventListener('change', (e) => {
       wrapper.style.width = imageW + 'px';
       wrapper.style.height = imageH + 'px';
       wrapper.style.display = 'block';
-      dropZone.style.display = 'none';
+      $('#drop-zone').style.display = 'none';
       bubbles = []; selectedId = null;
-      clearBubbleDom();
-      fitZoom();
-      enableButtons(true);
-      renderList();
-      renderEditor();
+      clearBubbleDom(); fitZoom(); enableButtons(true);
+      renderList(); renderEditor();
     };
     img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 });
 
-wrapper.addEventListener('click', (e) => {
+wrapper.addEventListener('click', e => {
   if (e.target === wrapper || e.target === canvasImg) {
     selectedId = null;
     document.querySelectorAll('.bubble').forEach(b => b.classList.remove('selected'));
-    renderEditor();
-    renderList();
+    renderEditor(); renderList();
   }
 });
 
-// Drag & drop image
-document.body.addEventListener('dragover', (e) => { e.preventDefault(); });
-document.body.addEventListener('drop', (e) => {
+document.body.addEventListener('dragover', e => e.preventDefault());
+document.body.addEventListener('drop', e => {
   e.preventDefault();
   const file = e.dataTransfer?.files?.[0];
   if (file && file.type.startsWith('image/')) {
-    const dt = new DataTransfer();
-    dt.items.add(file);
+    const dt = new DataTransfer(); dt.items.add(file);
     fileInput.files = dt.files;
     fileInput.dispatchEvent(new Event('change'));
   }
@@ -334,58 +377,96 @@ function enableButtons(v) {
 
 function fitZoom() {
   const area = $('#canvas-area');
-  const cw = area.clientWidth - 32;
-  const ch = area.clientHeight - 32;
-  const z = Math.min(cw / imageW, ch / imageH, 1);
-  setZoom(z);
-  $('#zoom-slider').value = z;
+  const z = Math.min((area.clientWidth-32)/imageW, (area.clientHeight-32)/imageH, 1);
+  setZoom(z); $('#zoom-slider').value = z;
 }
 
 function setZoom(v) {
   currentZoom = parseFloat(v);
   wrapper.style.transform = `scale(${currentZoom})`;
-  $('#zoom-label').textContent = Math.round(currentZoom * 100) + '%';
+  $('#zoom-label').textContent = Math.round(currentZoom*100)+'%';
 }
 
-function genId() { return 'b' + (++idCounter); }
+function genId() { return 'b'+(++idCounter); }
 
 function addBubble(type) {
   const s = TYPES[type];
   const b = {
     id: genId(), type,
-    text: type === 'onomatopoeia' ? 'ドキッ' : 'セリフを入力',
-    x: 50 + Math.random()*100, y: 50 + Math.random()*100,
+    text: type==='onomatopoeia' ? 'ドキッ' : 'セリフを入力',
+    x: 50+Math.random()*100, y: 50+Math.random()*100,
     fontSize: s.fontSize, bg: s.bg, color: s.color
   };
   bubbles.push(b);
   createBubbleDom(b);
-  selectBubble(b.id);
+  if (currentMode === 'edit') selectBubble(b.id);
+  else renderList();
 }
 
 function createBubbleDom(b) {
   const el = document.createElement('div');
-  el.className = 'bubble';
-  el.id = 'bub-' + b.id;
+  el.className = 'bubble '+currentMode+'-mode';
+  el.id = 'bub-'+b.id;
   el.dataset.bid = b.id;
   updateBubbleDom(b, el);
-  makeDraggable(el, b);
-  el.addEventListener('mousedown', (e) => { e.stopPropagation(); selectBubble(b.id); });
-  el.addEventListener('touchstart', (e) => { e.stopPropagation(); selectBubble(b.id); }, {passive: true});
+  setupInteraction(el, b);
   wrapper.appendChild(el);
 }
 
-function updateBubbleDom(b, el) {
-  if (!el) el = document.getElementById('bub-' + b.id);
-  if (!el) return;
-  const s = TYPES[b.type];
-  const isO = b.type === 'onomatopoeia';
-  el.style.left = b.x + 'px';
-  el.style.top = b.y + 'px';
-  el.style.backgroundColor = b.bg;
-  el.style.borderRadius = s.radius + 'px';
-  el.style.padding = s.padding + 'px';
-  el.style.gap = isO ? '2px' : '6px';
+function setupInteraction(el, b) {
+  el.addEventListener('mousedown', e => {
+    e.stopPropagation();
+    if (currentMode === 'move') {
+      const sx = e.clientX, sy = e.clientY, ox = b.x, oy = b.y;
+      const onMove = ev => {
+        b.x = ox + (ev.clientX - sx) / currentZoom;
+        b.y = oy + (ev.clientY - sy) / currentZoom;
+        el.style.left = b.x+'px'; el.style.top = b.y+'px';
+      };
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    } else {
+      selectBubble(b.id);
+    }
+  });
 
+  el.addEventListener('touchstart', e => {
+    e.stopPropagation();
+    if (currentMode === 'move') {
+      const t = e.touches[0];
+      const sx = t.clientX, sy = t.clientY, ox = b.x, oy = b.y;
+      const onMove = ev => {
+        ev.preventDefault();
+        const tc = ev.touches[0];
+        b.x = ox + (tc.clientX - sx) / currentZoom;
+        b.y = oy + (tc.clientY - sy) / currentZoom;
+        el.style.left = b.x+'px'; el.style.top = b.y+'px';
+      };
+      const onEnd = () => {
+        window.removeEventListener('touchmove', onMove);
+        window.removeEventListener('touchend', onEnd);
+      };
+      window.addEventListener('touchmove', onMove, {passive:false});
+      window.addEventListener('touchend', onEnd);
+    } else {
+      selectBubble(b.id);
+    }
+  }, {passive:true});
+}
+
+function updateBubbleDom(b, el) {
+  if (!el) el = document.getElementById('bub-'+b.id);
+  if (!el) return;
+  const s = TYPES[b.type], isO = b.type==='onomatopoeia';
+  el.style.left = b.x+'px'; el.style.top = b.y+'px';
+  el.style.backgroundColor = b.bg;
+  el.style.borderRadius = s.radius+'px';
+  el.style.padding = s.padding+'px';
+  el.style.gap = isO ? '2px' : '6px';
   const lines = b.text.split('\n');
   el.innerHTML = '';
   lines.forEach(line => {
@@ -393,9 +474,9 @@ function updateBubbleDom(b, el) {
     span.className = 'bubble-col';
     span.textContent = line;
     span.style.color = b.color;
-    span.style.fontSize = b.fontSize + 'px';
+    span.style.fontSize = b.fontSize+'px';
     span.style.fontWeight = s.weight;
-    span.style.letterSpacing = s.spacing + 'px';
+    span.style.letterSpacing = s.spacing+'px';
     span.style.textShadow = isO
       ? '0 0 8px rgba(0,0,0,0.8), 2px 2px 0 rgba(0,0,0,0.6)'
       : '0 1px 3px rgba(0,0,0,0.5)';
@@ -404,98 +485,40 @@ function updateBubbleDom(b, el) {
   });
 }
 
-function makeDraggable(el, b) {
-  let startX, startY, origX, origY;
-
-  el.addEventListener('mousedown', (e) => {
-    startX = e.clientX; startY = e.clientY;
-    origX = b.x; origY = b.y;
-    const onMove = (ev) => {
-      b.x = origX + (ev.clientX - startX) / currentZoom;
-      b.y = origY + (ev.clientY - startY) / currentZoom;
-      el.style.left = b.x + 'px';
-      el.style.top = b.y + 'px';
-    };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      renderEditor();
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  });
-
-  el.addEventListener('touchstart', (e) => {
-    const t = e.touches[0];
-    startX = t.clientX; startY = t.clientY;
-    origX = b.x; origY = b.y;
-    const onMove = (ev) => {
-      ev.preventDefault();
-      const tc = ev.touches[0];
-      b.x = origX + (tc.clientX - startX) / currentZoom;
-      b.y = origY + (tc.clientY - startY) / currentZoom;
-      el.style.left = b.x + 'px';
-      el.style.top = b.y + 'px';
-    };
-    const onEnd = () => {
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onEnd);
-      renderEditor();
-    };
-    window.addEventListener('touchmove', onMove, {passive: false});
-    window.addEventListener('touchend', onEnd);
-  }, {passive: true});
-}
-
 function selectBubble(id) {
+  if (currentMode !== 'edit') return;
   selectedId = id;
   document.querySelectorAll('.bubble').forEach(b => {
     b.classList.toggle('selected', b.dataset.bid === id);
   });
-  renderEditor();
-  renderList();
+  renderEditor(); renderList();
 }
 
 function deleteBubble(id) {
-  const el = document.getElementById('bub-' + id);
+  const el = document.getElementById('bub-'+id);
   if (el) el.remove();
   bubbles = bubbles.filter(b => b.id !== id);
-  selectedId = null;
-  renderEditor();
-  renderList();
+  selectedId = null; renderEditor(); renderList();
 }
 
 function duplicateBubble(id) {
   const src = bubbles.find(b => b.id === id);
   if (!src) return;
-  const nb = { ...src, id: genId(), x: src.x + 30, y: src.y + 30 };
-  bubbles.push(nb);
-  createBubbleDom(nb);
-  selectBubble(nb.id);
+  const nb = {...src, id: genId(), x: src.x+30, y: src.y+30};
+  bubbles.push(nb); createBubbleDom(nb); selectBubble(nb.id);
 }
 
-function clearBubbleDom() {
-  document.querySelectorAll('.bubble').forEach(e => e.remove());
-}
-
+function clearBubbleDom() { document.querySelectorAll('.bubble').forEach(e => e.remove()); }
 function getSelected() { return bubbles.find(b => b.id === selectedId); }
 
 function renderEditor() {
-  const editor = $('#editor');
-  const ph = $('#placeholder-msg');
-  const b = getSelected();
-  if (!b) {
-    editor.style.display = 'none';
-    ph.style.display = 'flex';
-    return;
+  const editor = $('#editor'), ph = $('#placeholder-msg'), b = getSelected();
+  if (!b || currentMode !== 'edit') {
+    editor.style.display = 'none'; ph.style.display = 'flex'; return;
   }
-  ph.style.display = 'none';
-  editor.style.display = 'block';
-
-  const isO = b.type === 'onomatopoeia';
-  const s = TYPES[b.type];
-
-  let html = `
+  ph.style.display = 'none'; editor.style.display = 'block';
+  const isO = b.type==='onomatopoeia', s = TYPES[b.type];
+  let h = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim)">${s.label}</span>
       <div style="display:flex;gap:4px">
@@ -503,95 +526,78 @@ function renderEditor() {
         <button class="btn-small" style="background:var(--red)" onclick="deleteBubble('${b.id}')">✕</button>
       </div>
     </div>
-
     <label class="lbl">テキスト</label>
     <textarea id="ed-text" rows="4" placeholder="改行で列分割" oninput="updateField('text',this.value)">${escapeHtml(b.text)}</textarea>
-    <div style="font-size:11px;color:var(--dim);margin:2px 0 8px">改行 = 新しい列（縦書き）</div>
-  `;
-
+    <div style="font-size:11px;color:var(--dim);margin:2px 0 8px">改行 = 新しい列（縦書き）</div>`;
   if (isO) {
-    html += `<label class="lbl">プリセット</label><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">`;
+    h += `<label class="lbl">プリセット</label><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">`;
     ONOM_PRESETS.forEach(p => {
-      html += `<button class="preset-btn ${b.text===p?'active':''}" onclick="updateField('text','${p}');renderEditor()">${p}</button>`;
+      h += `<button class="preset-btn ${b.text===p?'active':''}" onclick="updateField('text','${p}');renderEditor()">${p}</button>`;
     });
-    html += `</div>`;
+    h += `</div>`;
   }
-
-  html += `
+  h += `
     <label class="lbl">フォントサイズ: ${b.fontSize}px</label>
     <input type="range" min="12" max="80" value="${b.fontSize}" oninput="updateField('fontSize',+this.value)" style="margin-bottom:12px">
-
     <label class="lbl">背景色</label>
-    <div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap">
-  `;
+    <div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap">`;
   BG_COLORS.forEach(c => {
-    html += `<div class="color-swatch ${b.bg===c?'active':''}" onclick="updateField('bg','${c}');renderEditor()">
-      <div class="color-swatch-checker"></div>
-      <div class="color-swatch-inner" style="background:${c}"></div>
-    </div>`;
+    h += `<div class="color-swatch ${b.bg===c?'active':''}" onclick="updateField('bg','${c}');renderEditor()">
+      <div class="color-swatch-checker"></div><div class="color-swatch-inner" style="background:${c}"></div></div>`;
   });
-  html += `</div>`;
-
-  html += `<label class="lbl">文字色</label><div style="display:flex;gap:4px;margin-bottom:12px">`;
+  h += `</div><label class="lbl">文字色</label><div style="display:flex;gap:4px;margin-bottom:12px">`;
   TEXT_COLORS.forEach(c => {
-    html += `<div class="color-swatch ${b.color===c?'active':''}" style="background:${c}" onclick="updateField('color','${c}');renderEditor()"></div>`;
+    h += `<div class="color-swatch ${b.color===c?'active':''}" style="background:${c}" onclick="updateField('color','${c}');renderEditor()"></div>`;
   });
-  html += `</div>`;
-
-  html += `
+  h += `</div>
     <label class="lbl">タイプ切替</label>
     <div style="display:flex;gap:4px;margin-bottom:12px">
       <button class="type-btn ${b.type==='dialogue'?'active':''}" onclick="switchType('dialogue')">セリフ</button>
       <button class="type-btn ${b.type==='onomatopoeia'?'active':''}" onclick="switchType('onomatopoeia')">オノマトペ</button>
     </div>
-
     <label class="lbl">位置 (x, y)</label>
     <div style="display:flex;gap:6px;margin-bottom:12px">
       <input type="number" value="${Math.round(b.x)}" oninput="updateField('x',+this.value)" style="width:50%">
       <input type="number" value="${Math.round(b.y)}" oninput="updateField('y',+this.value)" style="width:50%">
-    </div>
-  `;
-
-  editor.innerHTML = html;
+    </div>`;
+  editor.innerHTML = h;
 }
 
 function updateField(key, val) {
-  const b = getSelected();
-  if (!b) return;
-  b[key] = val;
-  updateBubbleDom(b);
-  if (key === 'text') renderList();
+  const b = getSelected(); if (!b) return;
+  b[key] = val; updateBubbleDom(b);
+  if (key==='text') renderList();
 }
-
 function switchType(type) {
-  const b = getSelected();
-  if (!b) return;
-  b.type = type;
-  b.fontSize = TYPES[type].fontSize;
-  updateBubbleDom(b);
-  renderEditor();
-  renderList();
+  const b = getSelected(); if (!b) return;
+  b.type = type; b.fontSize = TYPES[type].fontSize;
+  updateBubbleDom(b); renderEditor(); renderList();
 }
-
 function renderList() {
   $('#bubble-count').textContent = bubbles.length;
-  const container = $('#list-items');
-  container.innerHTML = '';
+  const c = $('#list-items'); c.innerHTML = '';
   bubbles.forEach(b => {
-    const div = document.createElement('div');
-    div.className = 'list-item' + (b.id === selectedId ? ' active' : '');
-    div.onclick = () => selectBubble(b.id);
-    div.innerHTML = `
-      <span class="list-dot" style="background:${b.type==='onomatopoeia'?'var(--amber)':'var(--purple)'}"></span>
-      <span class="list-text">${escapeHtml(b.text.replace(/\n/g,' '))}</span>
-    `;
-    container.appendChild(div);
+    const d = document.createElement('div');
+    d.className = 'list-item'+(b.id===selectedId?' active':'');
+    d.onclick = () => { if(currentMode==='edit') selectBubble(b.id); };
+    d.innerHTML = `<span class="list-dot" style="background:${b.type==='onomatopoeia'?'var(--amber)':'var(--purple)'}"></span>
+      <span class="list-text">${escapeHtml(b.text.replace(/\n/g,' '))}</span>`;
+    c.appendChild(d);
   });
 }
-
 function escapeHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// Keyboard: Tab to toggle, Delete to remove
+document.addEventListener('keydown', e => {
+  if (e.key==='Tab' && imageData) { e.preventDefault(); setMode(currentMode==='move'?'edit':'move'); }
+  if ((e.key==='Delete'||e.key==='Backspace') && selectedId && currentMode==='edit') {
+    const a = document.activeElement;
+    if (a && (a.tagName==='TEXTAREA'||a.tagName==='INPUT')) return;
+    deleteBubble(selectedId);
+  }
+});
 
 // Export
 async function exportImage(format) {
@@ -599,75 +605,55 @@ async function exportImage(format) {
   const canvas = document.createElement('canvas');
   canvas.width = imageW; canvas.height = imageH;
   const ctx = canvas.getContext('2d');
-
   const img = new Image();
   await new Promise(r => { img.onload = r; img.src = imageData; });
   ctx.drawImage(img, 0, 0);
 
   for (const b of bubbles) {
-    const s = TYPES[b.type];
-    const fs = b.fontSize;
-    const isO = b.type === 'onomatopoeia';
+    const s = TYPES[b.type], fs = b.fontSize, isO = b.type==='onomatopoeia';
     ctx.font = `${s.weight==='bold'?'bold ':''}${fs}px "Hiragino Kaku Gothic ProN", sans-serif`;
-
     const lines = b.text.split('\n');
-    const lineH = fs * 1.4;
-    const charHeights = lines.map(line => Math.max(line.length * fs * 1.2, fs));
+    const lineH = fs*1.4;
+    const charHeights = lines.map(l => Math.max(l.length*fs*1.2, fs));
     const maxH = Math.max(...charHeights);
     const totalW = lines.length * lineH;
     const pad = s.padding;
 
-    // Background
     ctx.fillStyle = b.bg;
-    roundRect(ctx, b.x, b.y, totalW + pad*2, maxH + pad*2, s.radius);
+    roundRect(ctx, b.x, b.y, totalW+pad*2, maxH+pad*2, s.radius);
     ctx.fill();
 
-    // Text
     ctx.fillStyle = b.color;
     ctx.font = `${s.weight==='bold'?'bold ':''}${fs}px "Hiragino Kaku Gothic ProN", sans-serif`;
     ctx.textBaseline = 'middle';
-
     lines.forEach((line, li) => {
-      const colX = b.x + pad + (lines.length - 1 - li) * lineH + lineH / 2;
-      let charY = b.y + pad + fs * 0.6;
+      const colX = b.x + pad + (lines.length-1-li)*lineH + lineH/2;
+      let charY = b.y + pad + fs*0.6;
       for (const ch of line) {
-        if (isO) {
-          ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-          ctx.lineWidth = 3;
-          ctx.strokeText(ch, colX, charY);
-        }
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = isO ? 6 : 3;
+        if (isO) { ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=3; ctx.strokeText(ch,colX,charY); }
+        ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=isO?6:3;
         ctx.fillText(ch, colX, charY);
-        ctx.shadowBlur = 0;
-        charY += fs * 1.2;
+        ctx.shadowBlur=0; charY += fs*1.2;
       }
     });
   }
 
-  const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-  const q = format === 'jpeg' ? 0.92 : undefined;
+  const mime = format==='jpeg' ? 'image/jpeg' : 'image/png';
+  const q = format==='jpeg' ? 0.92 : undefined;
   canvas.toBlob(blob => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `bubble_output.${format}`;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = `bubble_output.${format}`;
+    a.click(); URL.revokeObjectURL(url);
   }, mime, q);
 }
 
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x+r, y);
-  ctx.lineTo(x+w-r, y);
-  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
-  ctx.lineTo(x+w, y+h-r);
-  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
-  ctx.lineTo(x+r, y+h);
-  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
-  ctx.lineTo(x, y+r);
-  ctx.quadraticCurveTo(x, y, x+r, y);
+function roundRect(ctx,x,y,w,h,r) {
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
   ctx.closePath();
 }
 </script>
