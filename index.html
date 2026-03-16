@@ -4,122 +4,86 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>吹き出しツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Hachi+Maru+Pop&family=Klee+One:wght@400;600&family=M+PLUS+Rounded+1c:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Reggae+One&family=Yusei+Magic&family=Zen+Maru+Gothic:wght@400;700&family=Zen+Kurenaido&display=swap" rel="stylesheet">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  :root{
-    --bg:#0f0f1a;--panel:#1a1a2e;--border:#2a2a4a;
-    --accent:#38bdf8;--text:#e2e8f0;--dim:#94a3b8;
-    --green:#10b981;--red:#ef4444;
-  }
-  body{
-    font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
-    background:var(--bg);color:var(--text);
-    height:100vh;height:100dvh;width:100vw;overflow:hidden;
-    display:flex;flex-direction:column;
-  }
+  :root{--bg:#0f0f1a;--panel:#1a1a2e;--border:#2a2a4a;--accent:#38bdf8;--text:#e2e8f0;--dim:#94a3b8;--green:#10b981;--red:#ef4444}
+  body{font-family:"Noto Sans JP",system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;width:100vw;overflow:hidden;display:flex;flex-direction:column}
   button{font-family:inherit;cursor:pointer;border:none;font-weight:600;-webkit-appearance:none}
   button:disabled{opacity:.4;cursor:default}
-
-  #topbar{
-    display:flex;align-items:center;gap:6px;
-    padding:6px 8px;background:var(--panel);
-    border-bottom:1px solid var(--border);
-    min-height:44px;flex-shrink:0;overflow-x:auto;
-  }
+  #topbar{display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--border);min-height:44px;flex-shrink:0}
   .btn{padding:7px 12px;color:#fff;border-radius:8px;font-size:13px;white-space:nowrap;touch-action:manipulation}
   .btn-sm{padding:5px 10px;font-size:12px;border-radius:6px}
   .mode-toggle{display:flex;border-radius:8px;overflow:hidden;border:2px solid var(--border);flex-shrink:0}
   .mode-btn{padding:6px 14px;font-size:13px;font-weight:600;background:transparent;color:var(--dim);border:none;transition:all .2s}
   .mode-btn.active{background:var(--accent);color:#000}
-
   #canvas-area{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:8px;-webkit-overflow-scrolling:touch}
   #drop-zone{width:280px;height:200px;border:2px dashed var(--border);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:8px}
   #canvas-wrapper{position:relative;display:none;flex-shrink:0;transform-origin:center center}
   #canvas-wrapper img{display:block;pointer-events:none}
 
-  .bubble{
-    position:absolute;writing-mode:vertical-rl;text-orientation:mixed;
-    user-select:none;outline:2px solid transparent;outline-offset:2px;
-    touch-action:none;line-height:1.5;
-  }
+  .bubble{position:absolute;user-select:none;touch-action:none}
   .bubble.move-mode{cursor:grab}
   .bubble.move-mode:active{cursor:grabbing}
-  .bubble.dragging{outline:2px solid var(--accent)}
+  .bubble.dragging .bubble-body{outline:2px solid var(--accent);outline-offset:2px}
+  .bubble-body{
+    writing-mode:vertical-rl;text-orientation:mixed;
+    line-height:1.5;position:relative;display:inline-block;
+  }
   .bubble-line{display:block}
+  /* Tail elements */
+  .bubble-tail{position:absolute;width:0;height:0;pointer-events:none}
+  .tail-bl{bottom:-12px;left:12px;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid}
+  .tail-br{bottom:-12px;right:12px;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid}
+  .tail-tl{top:-12px;left:12px;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid}
+  .tail-tr{top:-12px;right:12px;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid}
+  /* Thought dots */
+  .thought-dots{position:absolute;pointer-events:none}
+  .thought-dot{border-radius:50%;position:absolute}
 
   #editor-area{flex:1;overflow-y:auto;padding:10px;display:none;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
   .card{background:var(--panel);border-radius:12px;padding:12px;border:1px solid var(--border)}
   .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
   .card-title{font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px}
-  .card-actions{display:flex;gap:4px}
   .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
   .lbl{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:.5px;margin-bottom:4px;display:block}
-  textarea{
-    width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);
-    border-radius:8px;color:var(--text);font-size:16px;outline:none;font-family:inherit;
-    resize:none;min-height:60px;
-  }
+  textarea{width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;outline:none;font-family:inherit;resize:none;min-height:60px}
   input[type="range"]{-webkit-appearance:none;width:100%;height:6px;border-radius:3px;background:var(--border);outline:none}
   input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent);cursor:pointer}
-
-  .type-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
-  .type-chip{
-    padding:8px 6px;border-radius:8px;font-size:12px;font-weight:600;
-    text-align:center;cursor:pointer;border:2px solid transparent;
-    transition:all .15s;
-  }
-  .type-chip.active{border-color:var(--accent)}
-  .type-chip:active{transform:scale(.96)}
-
   .swatch-row{display:flex;gap:6px;flex-wrap:wrap}
   .swatch{width:32px;height:32px;border-radius:6px;cursor:pointer;border:2px solid transparent;position:relative;overflow:hidden}
   .swatch.active{border-color:var(--accent)}
   .swatch-checker{position:absolute;inset:0;background-image:linear-gradient(45deg,#333 25%,transparent 25%,transparent 75%,#333 75%),linear-gradient(45deg,#333 25%,transparent 25%,transparent 75%,#333 75%);background-size:8px 8px;background-position:0 0,4px 4px}
   .swatch-fill{position:absolute;inset:0;border-radius:5px}
+  .chip-row{display:flex;gap:5px;flex-wrap:wrap}
+  .chip{padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;border:2px solid transparent;transition:all .12s;text-align:center}
+  .chip.active{border-color:var(--accent)}
+  .chip:active{transform:scale(.95)}
+  .shape-chip{width:40px;height:40px;padding:0;display:flex;align-items:center;justify-content:center}
+  .font-chip{min-width:60px}
   .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--dim);gap:8px;text-align:center;padding:40px}
-
-  #bottombar{
-    display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--panel);
-    border-top:1px solid var(--border);min-height:44px;flex-shrink:0;
-    padding-bottom:max(6px,env(safe-area-inset-bottom));
-  }
+  #bottombar{display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--panel);border-top:1px solid var(--border);min-height:44px;flex-shrink:0;padding-bottom:max(6px,env(safe-area-inset-bottom))}
   .zoom-group{display:flex;align-items:center;gap:4px;font-size:12px;flex:1}
   .zoom-group span{color:var(--dim)}
-  #toast{
-    position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-    padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;
-    pointer-events:none;z-index:100;opacity:0;transition:opacity .3s;
-    background:rgba(56,189,248,.9);color:#000;white-space:nowrap;
-  }
+  #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;pointer-events:none;z-index:100;opacity:0;transition:opacity .3s;background:rgba(56,189,248,.9);color:#000;white-space:nowrap}
   #toast.show{opacity:1}
 
-  /* Add bubble sheet */
-  #add-sheet{
-    position:fixed;inset:0;z-index:50;display:none;
-    flex-direction:column;justify-content:flex-end;
-  }
+  #add-sheet{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;justify-content:flex-end}
   #add-sheet.open{display:flex}
   #add-sheet-bg{position:absolute;inset:0;background:rgba(0,0,0,.5)}
-  #add-sheet-body{
-    position:relative;background:var(--panel);border-radius:16px 16px 0 0;
-    padding:16px;max-height:70vh;overflow-y:auto;
-    padding-bottom:max(16px,env(safe-area-inset-bottom));
-  }
+  #add-sheet-body{position:relative;background:var(--panel);border-radius:16px 16px 0 0;padding:16px;max-height:70vh;overflow-y:auto;padding-bottom:max(16px,env(safe-area-inset-bottom))}
   .sheet-title{font-size:15px;font-weight:700;margin-bottom:12px;text-align:center}
   .sheet-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .sheet-item{
-    padding:12px 8px;border-radius:10px;text-align:center;cursor:pointer;
-    transition:transform .15s;border:1px solid var(--border);
-  }
+  .sheet-item{padding:12px 8px;border-radius:10px;text-align:center;cursor:pointer;transition:transform .15s;border:1px solid var(--border)}
   .sheet-item:active{transform:scale(.95)}
   .sheet-item-label{font-size:13px;font-weight:700;margin-bottom:2px}
   .sheet-item-desc{font-size:10px;opacity:.7}
-  .sheet-item-preview{
-    writing-mode:vertical-rl;text-orientation:mixed;
-    display:inline-block;font-size:14px;line-height:1.4;
-    padding:4px 6px;border-radius:4px;margin-bottom:4px;
-    max-height:60px;overflow:hidden;
-  }
+  .sheet-item-preview{writing-mode:vertical-rl;text-orientation:mixed;display:inline-block;font-size:14px;line-height:1.4;padding:4px 6px;border-radius:4px;margin-bottom:4px;max-height:60px;overflow:hidden}
+  .type-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:10px}
+  .type-chip{padding:6px 2px;border-radius:6px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .12s}
+  .type-chip.active{border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -154,119 +118,74 @@
   <button class="btn btn-sm" style="background:var(--green)" id="btn-expj" disabled onclick="exportImage('jpeg')">JPEG</button>
 </div>
 
-<div id="add-sheet">
-  <div id="add-sheet-bg" onclick="closeAddSheet()"></div>
-  <div id="add-sheet-body">
-    <div class="sheet-title">吹き出しタイプ</div>
-    <div class="sheet-grid" id="sheet-grid"></div>
-  </div>
-</div>
+<div id="add-sheet"><div id="add-sheet-bg" onclick="closeAddSheet()"></div><div id="add-sheet-body"><div class="sheet-title">吹き出しタイプ</div><div class="sheet-grid" id="sheet-grid"></div></div></div>
 <div id="toast"></div>
 
 <script>
-// ===== Bubble Types =====
-const BTYPES={
-  normal:{
-    label:"通常",desc:"基本のセリフ",
-    bg:"rgba(0,0,0,0.65)",color:"#fff",fontSize:26,radius:10,padding:14,weight:"normal",
-    defaultText:"セリフを入力",
-    chipBg:"#333",chipColor:"#fff"
-  },
-  whisper:{
-    label:"ささやき",desc:"小声・内緒話",
-    bg:"rgba(0,0,0,0.40)",color:"rgba(255,255,255,0.8)",fontSize:20,radius:12,padding:12,weight:"normal",
-    defaultText:"…ないしょ",
-    chipBg:"#2a2a3a",chipColor:"#aab"
-  },
-  shout:{
-    label:"叫び",desc:"大声・感情爆発",
-    bg:"rgba(180,30,30,0.75)",color:"#fff",fontSize:36,radius:6,padding:14,weight:"bold",
-    defaultText:"うわあぁ！",
-    chipBg:"#7f1d1d",chipColor:"#fca5a5"
-  },
-  thought:{
-    label:"心の声",desc:"モノローグ・独白",
-    bg:"rgba(20,30,60,0.60)",color:"rgba(200,220,255,0.9)",fontSize:22,radius:14,padding:14,weight:"normal",
-    defaultText:"（どうしよう…）",
-    chipBg:"#1e2a4a",chipColor:"#93c5fd"
-  },
-  narration:{
-    label:"ナレーション",desc:"状況説明・地の文",
-    bg:"rgba(0,0,0,0.80)",color:"rgba(255,255,255,0.85)",fontSize:20,radius:4,padding:12,weight:"normal",
-    defaultText:"その時——",
-    chipBg:"#111",chipColor:"#ccc"
-  },
-  shock:{
-    label:"驚愕",desc:"衝撃・フリーズ",
-    bg:"rgba(255,255,255,0.75)",color:"#111",fontSize:30,radius:8,padding:14,weight:"bold",
-    defaultText:"え……？",
-    chipBg:"#e2e8f0",chipColor:"#111"
-  },
-  blush:{
-    label:"恥じらい",desc:"照れ・赤面",
-    bg:"rgba(120,30,50,0.55)",color:"#ffd4d4",fontSize:22,radius:14,padding:14,weight:"normal",
-    defaultText:"べ、別に…",
-    chipBg:"#4a1525",chipColor:"#fca5a5"
-  },
-  cold:{
-    label:"冷淡",desc:"無感情・淡々",
-    bg:"rgba(30,40,50,0.70)",color:"rgba(180,200,210,0.9)",fontSize:22,radius:6,padding:12,weight:"normal",
-    defaultText:"そう",
-    chipBg:"#1a2530",chipColor:"#94a3b8"
-  },
-  anger:{
-    label:"怒り",desc:"激昂・威圧",
-    bg:"rgba(100,10,10,0.80)",color:"#ff6b6b",fontSize:32,radius:4,padding:14,weight:"bold",
-    defaultText:"ふざけんな",
-    chipBg:"#5c0a0a",chipColor:"#ff6b6b"
-  },
-  gentle:{
-    label:"やさしさ",desc:"穏やか・安心",
-    bg:"rgba(20,60,40,0.55)",color:"#b8f0d0",fontSize:24,radius:16,padding:14,weight:"normal",
-    defaultText:"大丈夫だよ",
-    chipBg:"#14302a",chipColor:"#86efac"
-  },
-  system:{
-    label:"システム",desc:"UI風・メタ表示",
-    bg:"rgba(0,0,0,0.85)",color:"#38bdf8",fontSize:18,radius:2,padding:10,weight:"normal",
-    defaultText:"SAVE POINT",
-    chipBg:"#0a0a1a",chipColor:"#38bdf8"
-  },
-  flashback:{
-    label:"回想",desc:"過去の記憶",
-    bg:"rgba(50,40,30,0.50)",color:"rgba(230,220,200,0.75)",fontSize:20,radius:10,padding:12,weight:"normal",
-    defaultText:"あの日——",
-    chipBg:"#2a2520",chipColor:"#d4c8a8"
-  },
-};
+// ===== FONTS =====
+const FONTS=[
+  {key:'noto-sans',label:'ゴシック',family:'"Noto Sans JP",sans-serif',sample:'Aa あ'},
+  {key:'noto-serif',label:'明朝',family:'"Noto Serif JP",serif',sample:'Aa あ'},
+  {key:'mplus-r',label:'丸ゴ',family:'"M PLUS Rounded 1c",sans-serif',sample:'Aa あ'},
+  {key:'zen-maru',label:'Zen丸',family:'"Zen Maru Gothic",sans-serif',sample:'Aa あ'},
+  {key:'klee',label:'硬筆',family:'"Klee One",cursive',sample:'Aa あ'},
+  {key:'yusei',label:'手書き',family:'"Yusei Magic",sans-serif',sample:'Aa あ'},
+  {key:'hachi',label:'ポップ',family:'"Hachi Maru Pop",cursive',sample:'Aa あ'},
+  {key:'reggae',label:'レゲエ',family:'"Reggae One",cursive',sample:'Aa あ'},
+  {key:'kurenaido',label:'くれない',family:'"Zen Kurenaido",sans-serif',sample:'Aa あ'},
+  {key:'dot',label:'ドット',family:'"DotGothic16",sans-serif',sample:'Aa あ'},
+];
 
+// ===== SHAPES =====
+const SHAPES=[
+  {key:'rounded',label:'角丸',icon:'▢'},
+  {key:'sharp',label:'四角',icon:'□'},
+  {key:'pill',label:'まる',icon:'⬭'},
+  {key:'tail-bl',label:'↙しっぽ',icon:'◁'},
+  {key:'tail-br',label:'しっぽ↘',icon:'▷'},
+  {key:'tail-tl',label:'↖しっぽ',icon:'◁̃'},
+  {key:'thought',label:'もくもく',icon:'☁'},
+];
+
+// ===== BUBBLE TYPES =====
+const BTYPES={
+  normal:{label:"通常",desc:"基本のセリフ",bg:"rgba(0,0,0,0.65)",color:"#fff",fontSize:26,radius:10,padding:14,weight:"normal",defaultText:"セリフを入力",chipBg:"#333",chipColor:"#fff"},
+  whisper:{label:"ささやき",desc:"小声・内緒話",bg:"rgba(0,0,0,0.40)",color:"rgba(255,255,255,0.8)",fontSize:20,radius:12,padding:12,weight:"normal",defaultText:"…ないしょ",chipBg:"#2a2a3a",chipColor:"#aab"},
+  shout:{label:"叫び",desc:"大声・感情爆発",bg:"rgba(180,30,30,0.75)",color:"#fff",fontSize:34,radius:6,padding:14,weight:"bold",defaultText:"うわあぁ！",chipBg:"#7f1d1d",chipColor:"#fca5a5"},
+  thought:{label:"心の声",desc:"モノローグ",bg:"rgba(20,30,60,0.60)",color:"rgba(200,220,255,0.9)",fontSize:22,radius:14,padding:14,weight:"normal",defaultText:"（どうしよう…）",chipBg:"#1e2a4a",chipColor:"#93c5fd"},
+  narration:{label:"ナレーション",desc:"状況説明・地の文",bg:"rgba(0,0,0,0.80)",color:"rgba(255,255,255,0.85)",fontSize:20,radius:4,padding:12,weight:"normal",defaultText:"その時——",chipBg:"#111",chipColor:"#ccc"},
+  shock:{label:"驚愕",desc:"衝撃・フリーズ",bg:"rgba(255,255,255,0.75)",color:"#111",fontSize:30,radius:8,padding:14,weight:"bold",defaultText:"え……？",chipBg:"#e2e8f0",chipColor:"#111"},
+  blush:{label:"恥じらい",desc:"照れ・赤面",bg:"rgba(120,30,50,0.55)",color:"#ffd4d4",fontSize:22,radius:14,padding:14,weight:"normal",defaultText:"べ、別に…",chipBg:"#4a1525",chipColor:"#fca5a5"},
+  cold:{label:"冷淡",desc:"無感情・淡々",bg:"rgba(30,40,50,0.70)",color:"rgba(180,200,210,0.9)",fontSize:22,radius:6,padding:12,weight:"normal",defaultText:"そう",chipBg:"#1a2530",chipColor:"#94a3b8"},
+  anger:{label:"怒り",desc:"激昂・威圧",bg:"rgba(100,10,10,0.80)",color:"#ff6b6b",fontSize:32,radius:4,padding:14,weight:"bold",defaultText:"ふざけんな",chipBg:"#5c0a0a",chipColor:"#ff6b6b"},
+  gentle:{label:"やさしさ",desc:"穏やか・安心",bg:"rgba(20,60,40,0.55)",color:"#b8f0d0",fontSize:24,radius:16,padding:14,weight:"normal",defaultText:"大丈夫だよ",chipBg:"#14302a",chipColor:"#86efac"},
+  system:{label:"システム",desc:"UI風・メタ表示",bg:"rgba(0,0,0,0.85)",color:"#38bdf8",fontSize:18,radius:2,padding:10,weight:"normal",defaultText:"SAVE POINT",chipBg:"#0a0a1a",chipColor:"#38bdf8"},
+  flashback:{label:"回想",desc:"過去の記憶",bg:"rgba(50,40,30,0.50)",color:"rgba(230,220,200,0.75)",fontSize:20,radius:10,padding:12,weight:"normal",defaultText:"あの日——",chipBg:"#2a2520",chipColor:"#d4c8a8"},
+};
 const EXTRA_BGS=["rgba(0,0,0,0.65)","rgba(0,0,0,0.45)","rgba(0,0,0,0.85)","rgba(30,30,60,0.7)","rgba(60,20,20,0.65)","rgba(20,40,60,0.7)","rgba(255,255,255,0.65)","rgba(120,30,50,0.55)","rgba(20,60,40,0.55)"];
 const EXTRA_COLORS=["#ffffff","#f0e68c","#fca5a5","#93c5fd","#86efac","#c4b5fd","#ff6b6b","#38bdf8","#ffd4d4","#111111"];
 
 let imageData=null,imageW=0,imageH=0;
 let bubbles=[],currentZoom=1,currentMode='move',idC=0;
-
 const $=s=>document.querySelector(s);
 const wrapper=$('#canvas-wrapper'),canvasImg=$('#canvas-img'),fileInput=$('#file-input');
 
-// --- Add Sheet ---
-function buildSheet(){
+// Build sheet
+(function buildSheet(){
   const g=$('#sheet-grid');let h='';
   Object.entries(BTYPES).forEach(([k,t])=>{
     h+=`<div class="sheet-item" style="background:${t.chipBg}" onclick="addBubble('${k}');closeAddSheet()">
-      <div class="sheet-item-preview" style="background:${t.bg};color:${t.color};font-weight:${t.weight};font-size:12px;border-radius:${t.radius}px">${t.defaultText.slice(0,4)}</div>
+      <div class="sheet-item-preview" style="background:${t.bg};color:${t.color};font-weight:${t.weight};font-size:12px;border-radius:${Math.min(t.radius,8)}px">${t.defaultText.slice(0,4)}</div>
       <div class="sheet-item-label" style="color:${t.chipColor}">${t.label}</div>
       <div class="sheet-item-desc" style="color:${t.chipColor}">${t.desc}</div>
     </div>`;
   });
   g.innerHTML=h;
-}
-buildSheet();
-
+})();
 function openAddSheet(){$('#add-sheet').classList.add('open')}
 function closeAddSheet(){$('#add-sheet').classList.remove('open')}
 
-// --- Mode ---
+// Mode
 function setMode(mode){
   currentMode=mode;
   $('#m-move').classList.toggle('active',mode==='move');
@@ -279,7 +198,7 @@ function setMode(mode){
 }
 function toast(t){const el=$('#toast');el.textContent=t;el.className='show';clearTimeout(toast._t);toast._t=setTimeout(()=>el.className='',1200)}
 
-// --- Image ---
+// Image
 fileInput.addEventListener('change',e=>{
   const f=e.target.files?.[0];if(!f)return;
   const r=new FileReader();
@@ -287,36 +206,29 @@ fileInput.addEventListener('change',e=>{
     const img=new Image();
     img.onload=()=>{
       imageW=img.width;imageH=img.height;imageData=ev.target.result;
-      canvasImg.src=imageData;
-      canvasImg.style.width=imageW+'px';canvasImg.style.height=imageH+'px';
+      canvasImg.src=imageData;canvasImg.style.width=imageW+'px';canvasImg.style.height=imageH+'px';
       wrapper.style.width=imageW+'px';wrapper.style.height=imageH+'px';
       wrapper.style.display='block';$('#drop-zone').style.display='none';
       bubbles=[];document.querySelectorAll('.bubble').forEach(e=>e.remove());
       fitZoom();enableBtns(true);renderEditor();
-    };
-    img.src=ev.target.result;
-  };
-  r.readAsDataURL(f);
+    };img.src=ev.target.result;
+  };r.readAsDataURL(f);
 });
 document.body.addEventListener('dragover',e=>e.preventDefault());
-document.body.addEventListener('drop',e=>{
-  e.preventDefault();const f=e.dataTransfer?.files?.[0];
-  if(f&&f.type.startsWith('image/')){const dt=new DataTransfer();dt.items.add(f);fileInput.files=dt.files;fileInput.dispatchEvent(new Event('change'))}
-});
+document.body.addEventListener('drop',e=>{e.preventDefault();const f=e.dataTransfer?.files?.[0];if(f&&f.type.startsWith('image/')){const dt=new DataTransfer();dt.items.add(f);fileInput.files=dt.files;fileInput.dispatchEvent(new Event('change'))}});
 function enableBtns(v){$('#btn-add').disabled=!v;$('#btn-exp').disabled=!v;$('#btn-expj').disabled=!v}
 function fitZoom(){const a=$('#canvas-area');const z=Math.min((a.clientWidth-16)/imageW,(a.clientHeight-16)/imageH,1);setZoom(z);$('#zoom-slider').value=z}
 function setZoom(v){currentZoom=parseFloat(v);wrapper.style.transform=`scale(${currentZoom})`;$('#zoom-label').textContent=Math.round(currentZoom*100)+'%'}
 function genId(){return'b'+(++idC)}
 
-// --- Bubbles ---
+// ===== Bubbles =====
 function addBubble(typeKey){
   const t=BTYPES[typeKey];if(!t)return;
   const b={
-    id:genId(),type:typeKey,
-    text:t.defaultText,
+    id:genId(),type:typeKey,text:t.defaultText,
     x:30+Math.random()*80,y:30+Math.random()*80,
     fontSize:t.fontSize,bg:t.bg,color:t.color,
-    opacity:1.0,
+    opacity:1.0,shape:'rounded',font:'noto-sans',
   };
   bubbles.push(b);createBubbleDom(b);
   if(currentMode==='edit') renderEditor();
@@ -328,24 +240,56 @@ function createBubbleDom(b){
   updateBubbleDom(b,el);setupDrag(el,b);wrapper.appendChild(el);
 }
 
+function getRadius(b){
+  const t=BTYPES[b.type]||BTYPES.normal;
+  if(b.shape==='sharp') return 0;
+  if(b.shape==='pill') return 999;
+  if(b.shape==='thought') return 16;
+  return t.radius;
+}
+
+function getFontFamily(b){
+  const f=FONTS.find(x=>x.key===b.font);
+  return f?f.family:'"Noto Sans JP",sans-serif';
+}
+
 function updateBubbleDom(b,el){
   if(!el) el=document.getElementById('bub-'+b.id);if(!el) return;
   const t=BTYPES[b.type]||BTYPES.normal;
   el.style.left=b.x+'px';el.style.top=b.y+'px';
-  el.style.backgroundColor=b.bg;
-  el.style.borderRadius=t.radius+'px';el.style.padding=t.padding+'px';
   el.style.opacity=b.opacity;
-  el.style.fontSize=b.fontSize+'px';
-  el.style.fontWeight=t.weight;
-  el.style.color=b.color;
-  el.style.textShadow='0 1px 4px rgba(0,0,0,0.6)';
+
+  const radius=getRadius(b);
+  const fontFamily=getFontFamily(b);
+
+  // Build body
+  let bodyHTML='';
   const lines=b.text.split('\n');
-  el.innerHTML='';
-  lines.forEach(line=>{
-    const sp=document.createElement('span');
-    sp.className='bubble-line';sp.textContent=line;
-    el.appendChild(sp);
-  });
+  lines.forEach(line=>{bodyHTML+=`<span class="bubble-line">${escH(line)}</span>`});
+
+  // Tail / thought decorations
+  let decoHTML='';
+  const bgColor=b.bg;
+  if(b.shape==='tail-bl') decoHTML=`<div class="bubble-tail tail-bl" style="border-top-color:${bgColor}"></div>`;
+  else if(b.shape==='tail-br') decoHTML=`<div class="bubble-tail tail-br" style="border-top-color:${bgColor}"></div>`;
+  else if(b.shape==='tail-tl') decoHTML=`<div class="bubble-tail tail-tl" style="border-bottom-color:${bgColor}"></div>`;
+  else if(b.shape==='thought'){
+    decoHTML=`<div class="thought-dots">
+      <div class="thought-dot" style="width:10px;height:10px;background:${bgColor};bottom:-16px;left:14px;position:absolute"></div>
+      <div class="thought-dot" style="width:6px;height:6px;background:${bgColor};bottom:-26px;left:8px;position:absolute"></div>
+    </div>`;
+  }
+
+  el.innerHTML=`<div class="bubble-body" style="
+    background:${bgColor};
+    border-radius:${radius}px;
+    padding:${t.padding}px;
+    font-size:${b.fontSize}px;
+    font-weight:${t.weight};
+    font-family:${fontFamily};
+    color:${b.color};
+    text-shadow:0 1px 4px rgba(0,0,0,0.6);
+  ">${bodyHTML}${decoHTML}</div>`;
 }
 
 function setupDrag(el,b){
@@ -366,38 +310,28 @@ function setupDrag(el,b){
   });
 }
 
-function deleteBubble(id){const el=document.getElementById('bub-'+id);if(el)el.remove();bubbles=bubbles.filter(b=>b.id!==id);renderEditor()}
-function duplicateBubble(id){
-  const src=bubbles.find(b=>b.id===id);if(!src)return;
-  const nb={...src,id:genId(),x:src.x+20,y:src.y+20};
-  bubbles.push(nb);createBubbleDom(nb);renderEditor();
-}
+function deleteBubble(id){document.getElementById('bub-'+id)?.remove();bubbles=bubbles.filter(b=>b.id!==id);renderEditor()}
+function duplicateBubble(id){const src=bubbles.find(b=>b.id===id);if(!src)return;const nb={...src,id:genId(),x:src.x+20,y:src.y+20};bubbles.push(nb);createBubbleDom(nb);renderEditor()}
 
-// --- Editor ---
+// ===== Editor =====
 function renderEditor(){
   const area=$('#editor-area');
-  if(!bubbles.length){
-    area.innerHTML='<div class="empty-state"><span style="font-size:13px">吹き出しがまだありません</span><span style="font-size:11px">＋追加 から作成してください</span></div>';
-    return;
-  }
+  if(!bubbles.length){area.innerHTML='<div class="empty-state"><span style="font-size:13px">吹き出しがまだありません</span></div>';return}
   let h='';
   bubbles.forEach((b,i)=>{
     const t=BTYPES[b.type]||BTYPES.normal;
     h+=`<div class="card">
       <div class="card-header">
-        <div class="card-title">
-          <span class="badge" style="background:${t.chipBg};color:${t.chipColor}">${t.label}</span>
-          <span style="font-size:12px;color:var(--dim)">#${i+1}</span>
-        </div>
-        <div class="card-actions">
+        <div class="card-title"><span class="badge" style="background:${t.chipBg};color:${t.chipColor}">${t.label}</span><span style="font-size:12px;color:var(--dim)">#${i+1}</span></div>
+        <div style="display:flex;gap:4px">
           <button class="btn btn-sm" style="background:#6366f1;color:#fff;font-size:11px" onclick="duplicateBubble('${b.id}')">複製</button>
           <button class="btn btn-sm" style="background:var(--red);color:#fff;font-size:11px" onclick="deleteBubble('${b.id}')">削除</button>
         </div>
       </div>
 
       <label class="lbl">テキスト</label>
-      <textarea data-id="${b.id}" data-field="text" oninput="uf(this)">${esc(b.text)}</textarea>
-      <div style="font-size:10px;color:var(--dim);margin:2px 0 8px">改行=新しい列</div>
+      <textarea data-id="${b.id}" data-field="text" oninput="uf(this)">${escH(b.text)}</textarea>
+      <div style="font-size:10px;color:var(--dim);margin:2px 0 6px">改行=新しい列</div>
 
       <label class="lbl" id="lbl-fs-${b.id}">サイズ: ${b.fontSize}px</label>
       <input type="range" min="12" max="60" value="${b.fontSize}" data-id="${b.id}" data-field="fontSize" oninput="uf(this)" style="margin-bottom:8px">
@@ -405,7 +339,21 @@ function renderEditor(){
       <label class="lbl" id="lbl-op-${b.id}">透明度: ${Math.round(b.opacity*100)}%</label>
       <input type="range" min="5" max="100" step="5" value="${Math.round(b.opacity*100)}" data-id="${b.id}" data-field="opacityPct" oninput="uf(this)" style="margin-bottom:8px">
 
-      <label class="lbl">タイプ変更</label>
+      <label class="lbl">フォント</label>
+      <div class="chip-row" style="margin-bottom:8px">`;
+    FONTS.forEach(f=>{
+      h+=`<div class="chip font-chip ${b.font===f.key?'active':''}" style="background:var(--border);color:var(--text);font-family:${f.family}" onclick="setField('${b.id}','font','${f.key}')">${f.label}</div>`;
+    });
+    h+=`</div>
+
+      <label class="lbl">形</label>
+      <div class="chip-row" style="margin-bottom:8px">`;
+    SHAPES.forEach(s=>{
+      h+=`<div class="chip shape-chip ${b.shape===s.key?'active':''}" style="background:var(--border);color:var(--text);font-size:11px" onclick="setField('${b.id}','shape','${s.key}')" title="${s.label}">${s.label}</div>`;
+    });
+    h+=`</div>
+
+      <label class="lbl">タイプ</label>
       <div class="type-grid">`;
     Object.entries(BTYPES).forEach(([k,v])=>{
       h+=`<div class="type-chip ${b.type===k?'active':''}" style="background:${v.chipBg};color:${v.chipColor}" onclick="changeType('${b.id}','${k}')">${v.label}</div>`;
@@ -414,13 +362,9 @@ function renderEditor(){
 
       <label class="lbl">背景色</label>
       <div class="swatch-row" style="margin-bottom:8px">`;
-    EXTRA_BGS.forEach(c=>{
-      h+=`<div class="swatch ${b.bg===c?'active':''}" onclick="setField('${b.id}','bg','${c}')"><div class="swatch-checker"></div><div class="swatch-fill" style="background:${c}"></div></div>`;
-    });
+    EXTRA_BGS.forEach(c=>{h+=`<div class="swatch ${b.bg===c?'active':''}" onclick="setField('${b.id}','bg','${c}')"><div class="swatch-checker"></div><div class="swatch-fill" style="background:${c}"></div></div>`});
     h+=`</div><label class="lbl">文字色</label><div class="swatch-row" style="margin-bottom:8px">`;
-    EXTRA_COLORS.forEach(c=>{
-      h+=`<div class="swatch ${b.color===c?'active':''}" style="background:${c}" onclick="setField('${b.id}','color','${c}')"></div>`;
-    });
+    EXTRA_COLORS.forEach(c=>{h+=`<div class="swatch ${b.color===c?'active':''}" style="background:${c}" onclick="setField('${b.id}','color','${c}')"></div>`});
     h+=`</div></div>`;
   });
   area.innerHTML=h;
@@ -437,13 +381,12 @@ function uf(el){
 function setField(id,field,val){const b=bubbles.find(x=>x.id===id);if(!b)return;b[field]=val;updateBubbleDom(b);renderEditor()}
 function changeType(id,typeKey){
   const b=bubbles.find(x=>x.id===id);if(!b)return;
-  const t=BTYPES[typeKey];
-  b.type=typeKey;b.fontSize=t.fontSize;b.bg=t.bg;b.color=t.color;
+  const t=BTYPES[typeKey];b.type=typeKey;b.fontSize=t.fontSize;b.bg=t.bg;b.color=t.color;
   updateBubbleDom(b);renderEditor();
 }
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function escH(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-// --- Export ---
+// ===== Export (Canvas) =====
 async function exportImage(format){
   if(!imageData)return;toast('書き出し中…');
   const canvas=document.createElement('canvas');canvas.width=imageW;canvas.height=imageH;
@@ -453,30 +396,42 @@ async function exportImage(format){
 
   for(const b of bubbles){
     const t=BTYPES[b.type]||BTYPES.normal;
-    const fs=b.fontSize;
-    const lines=b.text.split('\n');
-    const lineH=fs*1.5;
-    const charH=fs*1.25;
+    const fs=b.fontSize,lines=b.text.split('\n');
+    const lineH=fs*1.5,charH=fs*1.25;
     const maxChars=Math.max(...lines.map(l=>l.length));
     const totalW=lines.length*lineH;
     const totalH=maxChars*charH;
     const pad=t.padding;
+    const bw=totalW+pad*2, bh=totalH+pad*2;
+    const radius=b.shape==='sharp'?0:b.shape==='pill'?Math.min(bw,bh)/2:b.shape==='thought'?16:t.radius;
 
     ctx.globalAlpha=b.opacity;
+
+    // Background
     ctx.fillStyle=b.bg;
-    roundRect(ctx,b.x,b.y,totalW+pad*2,totalH+pad*2,t.radius);ctx.fill();
+    roundRect(ctx,b.x,b.y,bw,bh,radius);ctx.fill();
 
+    // Tail
+    if(b.shape==='tail-bl'){
+      ctx.beginPath();ctx.moveTo(b.x+12,b.y+bh);ctx.lineTo(b.x+28,b.y+bh);ctx.lineTo(b.x+12,b.y+bh+14);ctx.closePath();ctx.fill();
+    }else if(b.shape==='tail-br'){
+      ctx.beginPath();ctx.moveTo(b.x+bw-28,b.y+bh);ctx.lineTo(b.x+bw-12,b.y+bh);ctx.lineTo(b.x+bw-12,b.y+bh+14);ctx.closePath();ctx.fill();
+    }else if(b.shape==='tail-tl'){
+      ctx.beginPath();ctx.moveTo(b.x+12,b.y);ctx.lineTo(b.x+28,b.y);ctx.lineTo(b.x+12,b.y-14);ctx.closePath();ctx.fill();
+    }else if(b.shape==='thought'){
+      ctx.beginPath();ctx.arc(b.x+14+5,b.y+bh+16,5,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(b.x+8+3,b.y+bh+26,3,0,Math.PI*2);ctx.fill();
+    }
+
+    // Text
+    const fontFamily=getFontFamily(b);
     ctx.fillStyle=b.color;ctx.textBaseline='middle';ctx.textAlign='center';
-    ctx.font=`${t.weight==='bold'?'bold ':''}${fs}px "Hiragino Kaku Gothic ProN",sans-serif`;
+    ctx.font=`${t.weight==='bold'?'bold ':''}${fs}px ${fontFamily}`;
     ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=4;
-
     lines.forEach((line,li)=>{
       const colX=b.x+pad+(lines.length-1-li)*lineH+lineH/2;
       let charY=b.y+pad+charH/2;
-      for(const ch of line){
-        ctx.fillText(ch,colX,charY);
-        charY+=charH;
-      }
+      for(const ch of line){ctx.fillText(ch,colX,charY);charY+=charH}
     });
     ctx.shadowBlur=0;ctx.globalAlpha=1;
   }
@@ -490,6 +445,7 @@ async function exportImage(format){
 }
 
 function roundRect(ctx,x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
   ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
   ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
   ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
