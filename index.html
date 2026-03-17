@@ -31,6 +31,7 @@
   .bubble-inner{position:relative;display:inline-block;overflow:visible}
   .bubble-body{writing-mode:vertical-rl;text-orientation:mixed;line-height:1.2;letter-spacing:0;position:relative;z-index:1}
   .bubble-line{display:block}
+  .bubble-char{}
   .bubble-dot{position:absolute;border-radius:50%;pointer-events:none}
   #editor-area{flex:1;overflow-y:auto;padding:10px;display:none;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
   .card{background:var(--panel);border-radius:12px;padding:12px;border:1px solid var(--border)}
@@ -247,13 +248,18 @@ function updateBubbleDom(b,el){
     s.borderRadius=radius+'px';
   }
 
-  // Text lines
+  // Text lines — wrap each character in a span for precise export measurement
   const lines=b.text.split('\n');
   lines.forEach(lineText=>{
-    const span=document.createElement('span');
-    span.className='bubble-line';
-    span.textContent=lineText;
-    body.appendChild(span);
+    const lineSpan=document.createElement('span');
+    lineSpan.className='bubble-line';
+    [...lineText].forEach(ch=>{
+      const charSpan=document.createElement('span');
+      charSpan.className='bubble-char';
+      charSpan.textContent=ch;
+      lineSpan.appendChild(charSpan);
+    });
+    body.appendChild(lineSpan);
   });
 
   inner.appendChild(body);
@@ -424,8 +430,15 @@ async function exportImage(format){
     // Measure actual rendered bubble from DOM
     const domEl=document.getElementById('bub-'+b.id);
     const bodyEl=domEl?domEl.querySelector('.bubble-body'):null;
-    let bw=100,bh=80;
-    if(bodyEl){bw=bodyEl.offsetWidth;bh=bodyEl.offsetHeight}
+    const wrapperRectBg=wrapper.getBoundingClientRect();
+    let bx=b.x, by=b.y, bw=100, bh=80;
+    if(bodyEl){
+      const bodyRect=bodyEl.getBoundingClientRect();
+      bx=bodyRect.left-wrapperRectBg.left;
+      by=bodyRect.top-wrapperRectBg.top;
+      bw=bodyRect.width;
+      bh=bodyRect.height;
+    }
 
     const radius=b.shape==='sharp'?0:b.shape==='pill'?Math.min(bw,bh)/2:b.shape==='thought'?16:t.radius;
 
@@ -435,21 +448,21 @@ async function exportImage(format){
     // Background shape
     if(isPoly){
       const pts=shapePath(b.shape,bw,bh);
-      if(pts){drawPolyCanvas(ctx,pts,b.x,b.y);ctx.fill()}
+      if(pts){drawPolyCanvas(ctx,pts,bx,by);ctx.fill()}
     }else{
-      roundRect(ctx,b.x,b.y,bw,bh,radius);ctx.fill();
+      roundRect(ctx,bx,by,bw,bh,radius);ctx.fill();
     }
 
     // Tail / thought
     if(b.shape==='tail'){
       const tp=getTailPoints(bw,bh,b.tailAngle,18);
-      ctx.beginPath();ctx.moveTo(b.x+tp.b1x,b.y+tp.b1y);ctx.lineTo(b.x+tp.tipX,b.y+tp.tipY);ctx.lineTo(b.x+tp.b2x,b.y+tp.b2y);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.moveTo(bx+tp.b1x,by+tp.b1y);ctx.lineTo(bx+tp.tipX,by+tp.tipY);ctx.lineTo(bx+tp.b2x,by+tp.b2y);ctx.closePath();ctx.fill();
     }else if(b.shape==='thought'){
       const dots=getThoughtDots(bw,bh,b.tailAngle);
-      dots.forEach(d=>{ctx.beginPath();ctx.arc(b.x+d.x,b.y+d.y,d.r,0,Math.PI*2);ctx.fill()});
+      dots.forEach(d=>{ctx.beginPath();ctx.arc(bx+d.x,by+d.y,d.r,0,Math.PI*2);ctx.fill()});
     }
 
-    // Text: measure each column from DOM spans
+    // Text: read exact position of each character from DOM
     const fontFamily=getFontFamily(b);
     const fs=b.fontSize;
     const fontStr=`${t.weight==='bold'?'bold ':''}${fs}px ${fontFamily}`;
@@ -459,37 +472,21 @@ async function exportImage(format){
     ctx.textBaseline='middle';
     ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=4;
 
-    // Get column positions from DOM .bubble-line spans
-    const lineSpans=bodyEl?bodyEl.querySelectorAll('.bubble-line'):[];
-    const lines=b.text.split('\n');
+    // Wrapper rect for converting page coords to canvas coords
+    const wrapperRect=wrapper.getBoundingClientRect();
 
-    lines.forEach((line,li)=>{
-      const chars=[...line];
-      if(!chars.length)return;
-
-      // Get column X center from DOM span position (relative to body)
-      let colCenterX;
-      if(lineSpans[li]&&bodyEl){
-        const spanRect=lineSpans[li].getBoundingClientRect();
-        const bodyRect=bodyEl.getBoundingClientRect();
-        colCenterX=b.x+(spanRect.left-bodyRect.left)+spanRect.width/2;
-      }else{
-        // Fallback
-        const colW=fs*1.2;
-        colCenterX=b.x+pad+(lines.length-1-li)*colW+colW/2;
-      }
-
-      // Character vertical positions: evenly distributed within column height
-      // Content area height = bh - pad*2
-      const contentH=bh-pad*2;
-      const charAdv=chars.length>1?contentH/chars.length:contentH;
-      const startY=b.y+pad+charAdv/2;
-
-      chars.forEach((ch,ci)=>{
-        const charY=startY+ci*charAdv;
+    // Read each character span position from DOM
+    if(bodyEl){
+      const charSpans=bodyEl.querySelectorAll('.bubble-char');
+      charSpans.forEach(span=>{
+        const ch=span.textContent;
+        const rect=span.getBoundingClientRect();
+        // Center of the character in canvas coordinates
+        const cx=rect.left-wrapperRect.left+rect.width/2;
+        const cy=rect.top-wrapperRect.top+rect.height/2;
         if(shouldRotate(ch)){
           ctx.save();
-          ctx.translate(colCenterX,charY);
+          ctx.translate(cx,cy);
           ctx.rotate(Math.PI/2);
           ctx.font=fontStr;
           ctx.fillText(ch,0,0);
@@ -497,11 +494,11 @@ async function exportImage(format){
         }else{
           ctx.save();
           ctx.font=fontStr;
-          ctx.fillText(ch,colCenterX,charY);
+          ctx.fillText(ch,cx,cy);
           ctx.restore();
         }
       });
-    });
+    }
     ctx.shadowBlur=0;ctx.globalAlpha=1;
   }
 
