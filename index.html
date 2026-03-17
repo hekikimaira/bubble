@@ -370,19 +370,6 @@ function setField(id,field,val){const b=bubbles.find(x=>x.id===id);if(!b)return;
 function changeType(id,typeKey){const b=bubbles.find(x=>x.id===id);if(!b)return;const t=BTYPES[typeKey];b.type=typeKey;b.fontSize=t.fontSize;b.bg=t.bg;b.color=t.color;updateBubbleDom(b);renderEditor()}
 function escH(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-// ===== Character orientation (matches CSS text-orientation:mixed) =====
-// CJK and CJK symbols/punctuation → upright; everything else → rotate 90° CW
-function isUpright(ch){
-  const c=ch.charCodeAt(0);
-  if(c>=0x2E80&&c<=0x9FFF)return true; // CJK radicals, symbols, hiragana, katakana, kanji
-  if(c>=0xF900&&c<=0xFAFF)return true; // CJK compatibility ideographs
-  if(c>=0x3400&&c<=0x4DBF)return true; // CJK extension A
-  if(c>=0x20000&&c<=0x2FA1F)return true; // CJK extensions B-F (surrogate pairs)
-  if(c>=0xFE10&&c<=0xFE1F)return true; // Vertical forms
-  if(c>=0xFE30&&c<=0xFE4F)return true; // CJK compatibility forms
-  return false;
-}
-
 // Canvas polygon helper
 function drawPolyCanvas(ctx,pts,ox,oy){
   ctx.beginPath();ctx.moveTo(ox+pts[0].x,oy+pts[0].y);
@@ -395,30 +382,84 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
 }
 
-// ===== Export — manual canvas with proper vertical text =====
-async function exportImage(format){
-  if(!imageData)return;toast('書き出し中…');
-  const canvas=document.createElement('canvas');canvas.width=imageW;canvas.height=imageH;
-  const ctx=canvas.getContext('2d');
-  const img=new Image();await new Promise(r=>{img.onload=r;img.src=imageData});
-  ctx.drawImage(img,0,0);
-
-  for(const b of bubbles){
+// Render a single bubble's text via SVG foreignObject (browser renders CSS natively)
+function renderBubbleTextToImg(b){
+  return new Promise((resolve,reject)=>{
     const t=BTYPES[b.type]||BTYPES.normal;
-    const fs=b.fontSize;
+    const fontFamily=getFontFamily(b);
     const isPoly=needsPoly(b.shape);
     const margin=isPoly?12:0;
     const pad=t.padding+margin;
+
+    // Measure actual rendered size from DOM
+    const domEl=document.getElementById('bub-'+b.id);
+    const bodyEl=domEl?domEl.querySelector('.bubble-body'):null;
+    // Fallback measurements
+    let textW=100,textH=80;
+    if(bodyEl){textW=bodyEl.offsetWidth;textH=bodyEl.offsetHeight}
+
+    const svgW=textW+4, svgH=textH+4; // tiny margin for safety
+
+    // Build text HTML
     const lines=b.text.split('\n');
+    const linesHtml=lines.map(l=>`<span style="display:block">${escH(l)||'&nbsp;'}</span>`).join('');
 
-    // Character metrics: 1em advance for all chars in vertical layout
-    const charAdv=fs*1.2; // matches line-height:1.2
-    const colW=fs*1.5;    // column width
+    const htmlContent=`<div xmlns="http://www.w3.org/1999/xhtml" style="
+      writing-mode:vertical-rl;
+      text-orientation:mixed;
+      line-height:1.2;
+      font-size:${b.fontSize}px;
+      font-weight:${t.weight};
+      font-family:${fontFamily.replace(/"/g,'&quot;')};
+      color:${b.color};
+      text-shadow:0 1px 4px rgba(0,0,0,0.6);
+      padding:${pad}px;
+      display:inline-block;
+      white-space:nowrap;
+    ">${linesHtml}</div>`;
 
-    const maxChars=Math.max(...lines.map(l=>[...l].length));
-    const totalW=lines.length*colW;
-    const totalH=maxChars*charAdv;
-    const bw=totalW+pad*2, bh=totalH+pad*2;
+    const svgStr=`<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}">
+      <foreignObject width="${svgW}" height="${svgH}">
+        ${htmlContent}
+      </foreignObject>
+    </svg>`;
+
+    const blob=new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const img=new Image();
+    img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('SVG render failed'))};
+    img.src=url;
+  });
+}
+
+// ===== Export — hybrid: canvas shapes + SVG foreignObject text =====
+async function exportImage(format){
+  if(!imageData)return;toast('書き出し中…');
+
+  // Ensure canvas area is visible so we can measure DOM
+  const wasEdit=currentMode==='edit';
+  if(wasEdit){$('#canvas-area').style.display='flex';$('#editor-area').style.display='none'}
+  const origT=wrapper.style.transform;wrapper.style.transform='scale(1)';
+  await new Promise(r=>setTimeout(r,100));
+
+  const canvas=document.createElement('canvas');canvas.width=imageW;canvas.height=imageH;
+  const ctx=canvas.getContext('2d');
+  const baseImg=new Image();await new Promise(r=>{baseImg.onload=r;baseImg.src=imageData});
+  ctx.drawImage(baseImg,0,0);
+
+  for(const b of bubbles){
+    const t=BTYPES[b.type]||BTYPES.normal;
+    const isPoly=needsPoly(b.shape);
+    const margin=isPoly?12:0;
+    const pad=t.padding+margin;
+
+    // Measure from DOM
+    const domEl=document.getElementById('bub-'+b.id);
+    const bodyEl=domEl?domEl.querySelector('.bubble-body'):null;
+    let bw=100,bh=80;
+    if(bodyEl){bw=bodyEl.offsetWidth;bh=bodyEl.offsetHeight}
+
     const radius=b.shape==='sharp'?0:b.shape==='pill'?Math.min(bw,bh)/2:b.shape==='thought'?16:t.radius;
 
     ctx.globalAlpha=b.opacity;
@@ -431,7 +472,8 @@ async function exportImage(format){
     }else{
       roundRect(ctx,b.x,b.y,bw,bh,radius);ctx.fill();
     }
-    // Tail
+
+    // Tail / thought
     if(b.shape==='tail'){
       const tp=getTailPoints(bw,bh,b.tailAngle,18);
       ctx.beginPath();ctx.moveTo(b.x+tp.b1x,b.y+tp.b1y);ctx.lineTo(b.x+tp.tipX,b.y+tp.tipY);ctx.lineTo(b.x+tp.b2x,b.y+tp.b2y);ctx.closePath();ctx.fill();
@@ -440,41 +482,30 @@ async function exportImage(format){
       dots.forEach(d=>{ctx.beginPath();ctx.arc(b.x+d.x,b.y+d.y,d.r,0,Math.PI*2);ctx.fill()});
     }
 
-    // Draw text — vertical, right-to-left columns
-    const fontFamily=getFontFamily(b);
-    const fontStr=`${t.weight==='bold'?'bold ':''}${fs}px ${fontFamily}`;
-    ctx.font=fontStr;
-    ctx.fillStyle=b.color;
-    ctx.textAlign='center';
-    ctx.textBaseline='middle';
-    ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=4;
-
-    lines.forEach((line,li)=>{
-      const chars=[...line]; // proper Unicode iteration (handles surrogate pairs)
-      const colX=b.x+pad+(lines.length-1-li)*colW+colW/2;
-
-      chars.forEach((ch,ci)=>{
-        const charY=b.y+pad+ci*charAdv+charAdv/2;
-
-        if(isUpright(ch)){
-          // Draw upright — character as-is, centered
-          ctx.save();
-          ctx.font=fontStr; // ensure font is set
-          ctx.fillText(ch,colX,charY);
-          ctx.restore();
-        }else{
-          // Draw rotated 90° CW — matches text-orientation:mixed
-          ctx.save();
-          ctx.translate(colX,charY);
-          ctx.rotate(Math.PI/2);
-          ctx.font=fontStr;
-          ctx.fillText(ch,0,0);
-          ctx.restore();
-        }
+    // Draw text via SVG foreignObject
+    try{
+      const textImg=await renderBubbleTextToImg(b);
+      ctx.drawImage(textImg,b.x,b.y);
+    }catch(e){
+      // Fallback: simple horizontal text
+      console.warn('SVG text render failed, fallback',e);
+      const fontFamily=getFontFamily(b);
+      ctx.fillStyle=b.color;ctx.font=`${t.weight==='bold'?'bold ':''}${b.fontSize}px ${fontFamily}`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      const lines=b.text.split('\n');
+      const charAdv=b.fontSize*1.2;const colW=b.fontSize*1.5;
+      lines.forEach((line,li)=>{
+        const chars=[...line];
+        const colX=b.x+pad+(lines.length-1-li)*colW+colW/2;
+        chars.forEach((ch,ci)=>{ctx.fillText(ch,colX,b.y+pad+ci*charAdv+charAdv/2)});
       });
-    });
-    ctx.shadowBlur=0;ctx.globalAlpha=1;
+    }
+    ctx.globalAlpha=1;
   }
+
+  // Restore
+  wrapper.style.transform=origT;
+  if(wasEdit){$('#canvas-area').style.display='none';$('#editor-area').style.display='flex'}
 
   const mime=format==='jpeg'?'image/jpeg':'image/png';
   canvas.toBlob(blob=>{
