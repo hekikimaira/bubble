@@ -370,7 +370,7 @@ function setField(id,field,val){const b=bubbles.find(x=>x.id===id);if(!b)return;
 function changeType(id,typeKey){const b=bubbles.find(x=>x.id===id);if(!b)return;const t=BTYPES[typeKey];b.type=typeKey;b.fontSize=t.fontSize;b.bg=t.bg;b.color=t.color;updateBubbleDom(b);renderEditor()}
 function escH(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-// Canvas polygon helper
+// Canvas helpers
 function drawPolyCanvas(ctx,pts,ox,oy){
   ctx.beginPath();ctx.moveTo(ox+pts[0].x,oy+pts[0].y);
   for(let i=1;i<pts.length;i++)ctx.lineTo(ox+pts[i].x,oy+pts[i].y);
@@ -382,66 +382,33 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
 }
 
-// Render a single bubble's text via SVG foreignObject (browser renders CSS natively)
-function renderBubbleTextToImg(b){
-  return new Promise((resolve,reject)=>{
-    const t=BTYPES[b.type]||BTYPES.normal;
-    const fontFamily=getFontFamily(b);
-    const isPoly=needsPoly(b.shape);
-    const margin=isPoly?12:0;
-    const pad=t.padding+margin;
-
-    // Measure actual rendered size from DOM
-    const domEl=document.getElementById('bub-'+b.id);
-    const bodyEl=domEl?domEl.querySelector('.bubble-body'):null;
-    // Fallback measurements
-    let textW=100,textH=80;
-    if(bodyEl){textW=bodyEl.offsetWidth;textH=bodyEl.offsetHeight}
-
-    const svgW=textW+4, svgH=textH+4; // tiny margin for safety
-
-    // Build text HTML
-    const lines=b.text.split('\n');
-    const linesHtml=lines.map(l=>`<span style="display:block">${escH(l)||'&nbsp;'}</span>`).join('');
-
-    const htmlContent=`<div xmlns="http://www.w3.org/1999/xhtml" style="
-      writing-mode:vertical-rl;
-      text-orientation:mixed;
-      line-height:1.2;
-      font-size:${b.fontSize}px;
-      font-weight:${t.weight};
-      font-family:${fontFamily.replace(/"/g,'&quot;')};
-      color:${b.color};
-      text-shadow:0 1px 4px rgba(0,0,0,0.6);
-      padding:${pad}px;
-      display:inline-block;
-      white-space:nowrap;
-    ">${linesHtml}</div>`;
-
-    const svgStr=`<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}">
-      <foreignObject width="${svgW}" height="${svgH}">
-        ${htmlContent}
-      </foreignObject>
-    </svg>`;
-
-    const blob=new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'});
-    const url=URL.createObjectURL(blob);
-    const img=new Image();
-    img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};
-    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('SVG render failed'))};
-    img.src=url;
-  });
+// text-orientation:mixed rotation check
+// R (rotate 90° CW): Latin, digits, general punctuation (…), fullwidth parens （）, em-dash etc
+// U (upright): CJK ideographs, kana, CJK symbols 「」、。, katakana ー
+function shouldRotate(ch){
+  const c=ch.codePointAt(0);
+  // Explicitly upright ranges
+  if(c>=0x2E80&&c<=0x9FFF)return false; // CJK radicals→ideographs, includes kana 3040-30FF, CJK symbols 3000-303F
+  if(c>=0x3400&&c<=0x4DBF)return false; // CJK ext A
+  if(c>=0xF900&&c<=0xFAFF)return false; // CJK compat ideographs
+  if(c>=0x20000&&c<=0x2FA1F)return false; // CJK ext B-F
+  if(c>=0xFE10&&c<=0xFE1F)return false; // Vertical forms
+  if(c>=0xFE30&&c<=0xFE4F)return false; // CJK compat forms
+  // Fullwidth katakana/hiragana that end up in FF65-FF9F (halfwidth katakana)
+  if(c>=0xFF65&&c<=0xFF9F)return false;
+  // Everything else rotates (Latin, digits, fullwidth parens FF08/FF09, …U+2026, —U+2014, etc)
+  return true;
 }
 
-// ===== Export — hybrid: canvas shapes + SVG foreignObject text =====
+// ===== Export — manual canvas with DOM-measured sizes + proper rotation =====
 async function exportImage(format){
   if(!imageData)return;toast('書き出し中…');
 
-  // Ensure canvas area is visible so we can measure DOM
+  // Show canvas so we can measure DOM
   const wasEdit=currentMode==='edit';
   if(wasEdit){$('#canvas-area').style.display='flex';$('#editor-area').style.display='none'}
   const origT=wrapper.style.transform;wrapper.style.transform='scale(1)';
-  await new Promise(r=>setTimeout(r,100));
+  await new Promise(r=>setTimeout(r,80));
 
   const canvas=document.createElement('canvas');canvas.width=imageW;canvas.height=imageH;
   const ctx=canvas.getContext('2d');
@@ -454,7 +421,7 @@ async function exportImage(format){
     const margin=isPoly?12:0;
     const pad=t.padding+margin;
 
-    // Measure from DOM
+    // Measure actual rendered bubble from DOM
     const domEl=document.getElementById('bub-'+b.id);
     const bodyEl=domEl?domEl.querySelector('.bubble-body'):null;
     let bw=100,bh=80;
@@ -465,7 +432,7 @@ async function exportImage(format){
     ctx.globalAlpha=b.opacity;
     ctx.fillStyle=b.bg;
 
-    // Draw shape background
+    // Background shape
     if(isPoly){
       const pts=shapePath(b.shape,bw,bh);
       if(pts){drawPolyCanvas(ctx,pts,b.x,b.y);ctx.fill()}
@@ -482,33 +449,69 @@ async function exportImage(format){
       dots.forEach(d=>{ctx.beginPath();ctx.arc(b.x+d.x,b.y+d.y,d.r,0,Math.PI*2);ctx.fill()});
     }
 
-    // Draw text via SVG foreignObject
-    try{
-      const textImg=await renderBubbleTextToImg(b);
-      ctx.drawImage(textImg,b.x,b.y);
-    }catch(e){
-      // Fallback: simple horizontal text
-      console.warn('SVG text render failed, fallback',e);
-      const fontFamily=getFontFamily(b);
-      ctx.fillStyle=b.color;ctx.font=`${t.weight==='bold'?'bold ':''}${b.fontSize}px ${fontFamily}`;
-      ctx.textAlign='center';ctx.textBaseline='middle';
-      const lines=b.text.split('\n');
-      const charAdv=b.fontSize*1.2;const colW=b.fontSize*1.5;
-      lines.forEach((line,li)=>{
-        const chars=[...line];
-        const colX=b.x+pad+(lines.length-1-li)*colW+colW/2;
-        chars.forEach((ch,ci)=>{ctx.fillText(ch,colX,b.y+pad+ci*charAdv+charAdv/2)});
+    // Text: measure each column from DOM spans
+    const fontFamily=getFontFamily(b);
+    const fs=b.fontSize;
+    const fontStr=`${t.weight==='bold'?'bold ':''}${fs}px ${fontFamily}`;
+    ctx.fillStyle=b.color;
+    ctx.font=fontStr;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=4;
+
+    // Get column positions from DOM .bubble-line spans
+    const lineSpans=bodyEl?bodyEl.querySelectorAll('.bubble-line'):[];
+    const lines=b.text.split('\n');
+
+    lines.forEach((line,li)=>{
+      const chars=[...line];
+      if(!chars.length)return;
+
+      // Get column X center from DOM span position (relative to body)
+      let colCenterX;
+      if(lineSpans[li]&&bodyEl){
+        const spanRect=lineSpans[li].getBoundingClientRect();
+        const bodyRect=bodyEl.getBoundingClientRect();
+        colCenterX=b.x+(spanRect.left-bodyRect.left)+spanRect.width/2;
+      }else{
+        // Fallback
+        const colW=fs*1.2;
+        colCenterX=b.x+pad+(lines.length-1-li)*colW+colW/2;
+      }
+
+      // Character vertical positions: evenly distributed within column height
+      // Content area height = bh - pad*2
+      const contentH=bh-pad*2;
+      const charAdv=chars.length>1?contentH/chars.length:contentH;
+      const startY=b.y+pad+charAdv/2;
+
+      chars.forEach((ch,ci)=>{
+        const charY=startY+ci*charAdv;
+        if(shouldRotate(ch)){
+          ctx.save();
+          ctx.translate(colCenterX,charY);
+          ctx.rotate(Math.PI/2);
+          ctx.font=fontStr;
+          ctx.fillText(ch,0,0);
+          ctx.restore();
+        }else{
+          ctx.save();
+          ctx.font=fontStr;
+          ctx.fillText(ch,colCenterX,charY);
+          ctx.restore();
+        }
       });
-    }
-    ctx.globalAlpha=1;
+    });
+    ctx.shadowBlur=0;ctx.globalAlpha=1;
   }
 
-  // Restore
+  // Restore UI
   wrapper.style.transform=origT;
   if(wasEdit){$('#canvas-area').style.display='none';$('#editor-area').style.display='flex'}
 
   const mime=format==='jpeg'?'image/jpeg':'image/png';
   canvas.toBlob(blob=>{
+    if(!blob){toast('エラー');return}
     const url=URL.createObjectURL(blob);const a=document.createElement('a');
     a.href=url;a.download=`bubble_output.${format}`;a.click();URL.revokeObjectURL(url);
     toast('保存しました');
